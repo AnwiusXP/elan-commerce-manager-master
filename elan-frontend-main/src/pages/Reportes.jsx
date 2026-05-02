@@ -17,15 +17,18 @@ function Reportes() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
 
-  // Simulamos la carga de productos para el select (Ajusta esto a tu endpoint real de productos si es necesario)
+  // Carga de productos desde la base de datos
   useEffect(() => {
-    // Aquí deberías llamar a tu getProductos() real. Usamos un mock basado en tu contexto previo.
-    setProductos([
-      { id: "1", nombre: "Ambientador" },
-      { id: "2", nombre: "Límpido" },
-      { id: "3", nombre: "Desengrasante" },
-      { id: "4", nombre: "Detergente ropa" }
-    ]);
+    const fetchProductos = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/api/productos');
+        setProductos(response.data);
+      } catch (err) {
+        console.error('Error cargando productos:', err);
+        setProductos([]);
+      }
+    };
+    fetchProductos();
   }, []);
 
   const ejecutarAnalisis = async () => {

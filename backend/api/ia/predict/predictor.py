@@ -16,36 +16,72 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 # Usamos gemini-1.5-flash porque gemini-pro ya está siendo deprecado por Google
 model = genai.GenerativeModel('gemini-2.5-flash')
 
+from fastapi import Depends
+import sys
+import os
+
+# Asegurar que el directorio 'backend' esté en el path para importar auth y models
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
+try:
+    from auth import get_db
+    from models import Venta
+    from sqlalchemy.orm import Session
+except ImportError:
+    pass
+
 @router.get("")
-async def predecir_demanda(producto: str = Query(default="Todos", description="Nombre o ID del producto")):
+async def predecir_demanda(
+    producto: str = Query(default="Todos", description="Nombre o ID del producto"),
+    db: Session = Depends(get_db)
+):
     try:
         # ---------------------------------------------------------
-        # 1. CARGA DE DATOS SEGURA (Evita el error de 'df' no definido)
+        # 1. CONSULTA A LA BASE DE DATOS (REEMPLAZO DE JSON ESTÁTICO)
         # ---------------------------------------------------------
-        ruta_json = "datos_simulacion.json"
-        if not os.path.exists(ruta_json):
-            raise Exception(f"No se encontró el archivo de base de datos simulada: {ruta_json}")
-            
-        with open(ruta_json, "r", encoding="utf-8") as file:
-            datos = json.load(file)
-            
+        ventas = db.query(Venta).all()
+        datos_procesados = []
+        
+        for venta in ventas:
+            if not venta.items:
+                continue
+            try:
+                # Puede ser un JSON válido o un texto en caso de inserción manual errónea
+                items = json.loads(venta.items)
+                if isinstance(items, list):
+                    for item in items:
+                        datos_procesados.append({
+                            "producto_id": str(item.get("producto_id", "Desconocido")),
+                            "nombre_producto": item.get("nombre_producto", "Desconocido"),
+                            "cantidad": float(item.get("cantidad", 0)),
+                            "fecha_venta": venta.fecha.date() if venta.fecha else datetime.now().date()
+                        })
+            except Exception as parse_error:
+                print(f"Error parseando items de venta ID {venta.id}: {parse_error}")
+                pass
+
+        if not datos_procesados:
+            # Fallback en caso de no tener datos en BD para evitar caídas
+            print("⚠️ No hay ventas válidas en la BD, usando fallback para modelo.")
+            datos_procesados = [
+                {"producto_id": "1", "nombre_producto": "Fallback", "cantidad": 50, "fecha_venta": "2026-04-10"},
+                {"producto_id": "1", "nombre_producto": "Fallback", "cantidad": 55, "fecha_venta": "2026-04-11"}
+            ]
+
         # AQUÍ NACE 'df' OFICIALMENTE
-        df = pd.DataFrame(datos)
+        df = pd.DataFrame(datos_procesados)
+        # Asegurar formato de fecha para agrupar
+        df['fecha_venta'] = pd.to_datetime(df['fecha_venta']).dt.strftime('%Y-%m-%d')
         nombre_producto = "Todos los productos"
         
         # ---------------------------------------------------------
-        # 2. FILTRAR LOS DATOS POR EL PRODUCTO
+        # 2. FILTRAR LOS DATOS POR EL PRODUCTO Y AGRUPAR POR DÍA
         # ---------------------------------------------------------
         if producto != "Todos":
-            # 💡 SOLUCIÓN: Convertimos la columna y el parámetro a String para evitar errores de tipo
-            # También usamos un print para depurar en consola y ver qué está pasando
-            print(f"Buscando el producto con ID: {producto}")
+            print(f"Buscando el producto con ID o Nombre: {producto}")
             
-            # Asegúrate de que 'producto_id' sea exactamente el nombre de la llave en tu JSON
-            if 'producto_id' in df.columns:
-                df = df[df['producto_id'].astype(str) == str(producto)] 
-            else:
-                print("⚠️ ADVERTENCIA: La columna 'producto_id' no existe en el JSON.")
+            # Filtramos por producto_id o nombre_producto
+            mask = (df['producto_id'].astype(str) == str(producto)) | (df['nombre_producto'].astype(str).str.lower() == str(producto).lower())
+            df = df[mask]
             
             nombre_producto = producto
             
@@ -63,10 +99,12 @@ async def predecir_demanda(producto: str = Query(default="Todos", description="N
                     }
                 }
 
-        # Extraemos los datos reales de nuestro df en lugar de usar datos quemados (hardcoded)
-        # Asegúrate de que las columnas se llamen 'fecha_venta' y 'cantidad' en tu JSON
-        fechas_historicas = df['fecha_venta'].astype(str).tolist() if 'fecha_venta' in df.columns else ["2026-04-10", "2026-04-11", "2026-04-12", "2026-04-13", "2026-04-14"]
-        cantidades_historicas = df['cantidad'].tolist() if 'cantidad' in df.columns else [50, 55, 52, 60, 58]
+        # Agrupamos por fecha sumando las cantidades
+        df_agrupado = df.groupby('fecha_venta')['cantidad'].sum().reset_index()
+        df_agrupado = df_agrupado.sort_values('fecha_venta')
+
+        fechas_historicas = df_agrupado['fecha_venta'].astype(str).tolist()
+        cantidades_historicas = df_agrupado['cantidad'].tolist()
             
         # ---------------------------------------------------------
         # 3. MOTOR XGBOOST (Predicción Numérica Simulada/Real)
