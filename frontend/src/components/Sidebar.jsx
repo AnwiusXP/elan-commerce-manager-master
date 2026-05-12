@@ -29,6 +29,7 @@ function Sidebar({ active }) {
           { path: '/ventas', label: 'Ventas' },
           { path: '/inventario', label: 'Inventario' },
           { path: '/reportes', label: 'Reportes' },
+          { path: '/usuarios', label: 'Usuarios' },
         ].map(item => (
           <Link key={item.path} to={item.path} style={{
             display: 'block', textDecoration: 'none',

@@ -33,7 +33,7 @@ function Ventas() {
     if (existente) {
       setItems(items.map(it => it.nombre === p.nombre ? { ...it, cantidad: it.cantidad + cantidad } : it))
     } else {
-      setItems([...items, { nombre: p.nombre, precio: p.precio, cantidad }])
+      setItems([...items, { id: p.id, nombre: p.nombre, precio: p.precio, cantidad }])
     }
   }
 
@@ -43,7 +43,13 @@ function Ventas() {
 
   async function generarFactura() {
     if (items.length === 0) { alert('Agrega al menos un producto'); return }
-    const res = await registrarVenta(items)
+    const itemsParaBackend = items.map(it => ({
+      producto_id: it.id,
+      nombre_producto: it.nombre,
+      cantidad: it.cantidad,
+      precio: it.precio
+    }))
+    const res = await registrarVenta(itemsParaBackend)
     if (res.ok) {
       setExito(true)
       setItems([])

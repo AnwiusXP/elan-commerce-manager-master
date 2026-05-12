@@ -1,0 +1,511 @@
+/* =============================================
+   INVENTARIO — Centro Operativo de Flujo
+   ============================================= */
+
+/* --- KPI Cards Row --- */
+.inv-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.inv-kpi-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 14px;
+  padding: 22px 24px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, transform 0.2s;
+}
+
+.inv-kpi-card:hover {
+  border-color: #484f58;
+  transform: translateY(-2px);
+}
+
+.inv-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 14px 14px 0 0;
+}
+
+.inv-kpi-card.accent-green::before { background: linear-gradient(90deg, #1e8a5e, #2dd48b); }
+.inv-kpi-card.accent-red::before { background: linear-gradient(90deg, #f85149, #ff7b72); }
+.inv-kpi-card.accent-yellow::before { background: linear-gradient(90deg, #d29922, #e3b341); }
+.inv-kpi-card.accent-blue::before { background: linear-gradient(90deg, #388bfd, #58a6ff); }
+
+.inv-kpi-label {
+  color: #8b949e;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.inv-kpi-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.inv-kpi-value.green { color: #2dd48b; }
+.inv-kpi-value.red { color: #f85149; }
+.inv-kpi-value.yellow { color: #e3b341; }
+.inv-kpi-value.blue { color: #58a6ff; }
+
+.inv-kpi-sub {
+  color: #6e7681;
+  font-size: 0.78rem;
+  margin-top: 6px;
+}
+
+/* --- Controls Bar --- */
+.inv-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.inv-search {
+  flex: 1;
+  min-width: 200px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.inv-search:focus {
+  border-color: #388bfd;
+}
+
+.inv-filter-btn {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.inv-filter-btn:hover {
+  background: #30363d;
+  border-color: #484f58;
+}
+
+.inv-filter-btn.active {
+  background: rgba(30, 138, 94, 0.15);
+  color: #2dd48b;
+  border-color: #1e8a5e;
+}
+
+.inv-btn-primary {
+  background: linear-gradient(135deg, #1e8a5e, #2dd48b);
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.inv-btn-primary:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+/* --- Main Table --- */
+.inv-table-wrap {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.inv-table thead {
+  background: #21262d;
+}
+
+.inv-table th {
+  color: #8b949e;
+  font-size: 0.78rem;
+  padding: 12px 18px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+.inv-table tbody tr {
+  border-bottom: 1px solid #21262d;
+  transition: background-color 0.15s;
+}
+
+.inv-table tbody tr:hover {
+  background-color: rgba(56, 139, 253, 0.04);
+}
+
+.inv-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.inv-table td {
+  padding: 14px 18px;
+  font-size: 0.9rem;
+}
+
+.inv-table td.muted {
+  color: #8b949e;
+}
+
+/* --- Status Badges --- */
+.inv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.inv-badge.OPTIMO {
+  background: rgba(45, 212, 139, 0.12);
+  color: #2dd48b;
+}
+
+.inv-badge.CRITICO {
+  background: rgba(248, 81, 73, 0.12);
+  color: #f85149;
+}
+
+.inv-badge.SIN_STOCK {
+  background: rgba(248, 81, 73, 0.2);
+  color: #ff7b72;
+}
+
+.inv-badge.ESTANCADO {
+  background: rgba(227, 179, 65, 0.12);
+  color: #e3b341;
+}
+
+/* --- Speed indicator --- */
+.inv-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inv-speed-bar {
+  width: 48px;
+  height: 5px;
+  background: #21262d;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.inv-speed-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* --- Action buttons --- */
+.inv-action-btn {
+  background: none;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 6px;
+}
+
+.inv-action-btn:hover {
+  border-color: #58a6ff;
+  color: #58a6ff;
+  background: rgba(56, 139, 253, 0.08);
+}
+
+.inv-action-btn.danger:hover {
+  border-color: #f85149;
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.08);
+}
+
+/* --- Modal / Drawer --- */
+.inv-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: inv-fadeIn 0.2s ease;
+}
+
+@keyframes inv-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.inv-modal {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  padding: 0;
+  width: 100%;
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: inv-slideUp 0.25s ease;
+}
+
+@keyframes inv-slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.inv-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #21262d;
+}
+
+.inv-modal-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.inv-modal-close {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.inv-modal-close:hover {
+  color: #e6edf3;
+}
+
+.inv-modal-body {
+  padding: 20px 24px 24px;
+}
+
+/* --- Timeline (Trazabilidad) --- */
+.inv-timeline {
+  position: relative;
+  padding-left: 28px;
+}
+
+.inv-timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: #30363d;
+  border-radius: 1px;
+}
+
+.inv-timeline-item {
+  position: relative;
+  margin-bottom: 20px;
+  padding-bottom: 4px;
+}
+
+.inv-timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.inv-timeline-dot {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #0d1117;
+}
+
+.inv-timeline-dot.VENTA { background: #f85149; }
+.inv-timeline-dot.ENTRADA_COMPRA { background: #2dd48b; }
+.inv-timeline-dot.AJUSTE_MERMA { background: #e3b341; }
+.inv-timeline-dot.DEVOLUCION { background: #58a6ff; }
+
+.inv-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.inv-timeline-tipo {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.inv-timeline-fecha {
+  font-size: 0.75rem;
+  color: #6e7681;
+}
+
+.inv-timeline-detail {
+  font-size: 0.84rem;
+  color: #8b949e;
+}
+
+.inv-timeline-detail span {
+  font-weight: 600;
+}
+
+.inv-timeline-detail .positive { color: #2dd48b; }
+.inv-timeline-detail .negative { color: #f85149; }
+
+/* --- Ajuste form inside modal --- */
+.inv-form-group {
+  margin-bottom: 16px;
+}
+
+.inv-form-group label {
+  display: block;
+  color: #c9d1d9;
+  font-size: 0.84rem;
+  margin-bottom: 6px;
+}
+
+.inv-form-input,
+.inv-form-select {
+  width: 100%;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.inv-form-input:focus,
+.inv-form-select:focus {
+  border-color: #388bfd;
+}
+
+.inv-form-textarea {
+  width: 100%;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  outline: none;
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.inv-form-textarea:focus {
+  border-color: #388bfd;
+}
+
+.inv-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.inv-btn-cancel {
+  flex: 1;
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  transition: all 0.2s;
+}
+
+.inv-btn-cancel:hover {
+  border-color: #484f58;
+  color: #c9d1d9;
+}
+
+.inv-btn-submit {
+  flex: 1;
+  background: linear-gradient(135deg, #1e8a5e, #2dd48b);
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.inv-btn-submit:hover {
+  opacity: 0.9;
+}
+
+/* --- Empty state --- */
+.inv-empty {
+  text-align: center;
+  color: #6e7681;
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+
+.inv-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1100px) {
+  .inv-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .inv-kpis {
+    grid-template-columns: 1fr;
+  }
+}

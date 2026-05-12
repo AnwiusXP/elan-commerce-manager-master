@@ -3,33 +3,83 @@ import { Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement } from 'chart.js'
 import Sidebar from '../components/Sidebar'
 import { getProductos } from '../services/productoService'
+import { getVentas } from '../services/ventaService'
+import { getPrediccion } from '../services/predictService'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement)
 
 function Dashboard() {
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [ventasDelDia, setVentasDelDia] = useState(0)
+  const [prediccionNivel, setPrediccionNivel] = useState('—')
+  const [ventasMensuales, setVentasMensuales] = useState({ labels: [], data: [] })
 
   useEffect(() => {
-    cargarProductos()
+    cargarDatos()
   }, [])
 
-  async function cargarProductos() {
+  async function cargarDatos() {
     setCargando(true)
-    const data = await getProductos()
-    setProductos(data)
+    try {
+      // Cargar productos, ventas y predicción en paralelo
+      const [dataProductos, dataVentas, dataPrediccion] = await Promise.all([
+        getProductos(),
+        getVentas().catch(() => []),
+        getPrediccion().catch(() => null)
+      ])
+
+      setProductos(dataProductos)
+
+      // --- Ventas del día ---
+      const hoy = new Date().toISOString().slice(0, 10) // "YYYY-MM-DD"
+      const totalHoy = dataVentas
+        .filter(v => v.fecha && v.fecha.slice(0, 10) === hoy)
+        .reduce((acc, v) => acc + (v.total || 0), 0)
+      setVentasDelDia(totalHoy)
+
+      // --- Predicción IA ---
+      if (dataPrediccion && dataPrediccion.nivel) {
+        setPrediccionNivel(dataPrediccion.nivel)
+      }
+
+      // --- Gráfica: ventas agrupadas por mes (últimos 6 meses) ---
+      const ahora = new Date()
+      const mesesMap = {}
+      const nombresMes = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+      // Inicializar los últimos 6 meses con 0
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        mesesMap[key] = { label: nombresMes[d.getMonth()], total: 0 }
+      }
+
+      // Sumar totales de ventas por mes
+      dataVentas.forEach(v => {
+        if (!v.fecha) return
+        const mesKey = v.fecha.slice(0, 7) // "YYYY-MM"
+        if (mesesMap[mesKey]) {
+          mesesMap[mesKey].total += v.total || 0
+        }
+      })
+
+      const labels = Object.values(mesesMap).map(m => m.label)
+      const data = Object.values(mesesMap).map(m => m.total)
+      setVentasMensuales({ labels, data })
+
+    } catch (err) {
+      console.error('Error cargando dashboard:', err)
+    }
     setCargando(false)
   }
 
   const bajos = productos.filter(p => p.stock <= p.stockMin).length
 
-  const ventas = [320000, 450000, 390000, 520000, 410000, 480000, 560000]
-  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul']
-
   const dataGrafico = {
-    labels: meses,
+    labels: ventasMensuales.labels,
     datasets: [{
-      data: ventas,
+      data: ventasMensuales.data,
       backgroundColor: '#1e8a5e',
       borderRadius: 6,
     }]
@@ -59,7 +109,9 @@ function Dashboard() {
               </div>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Ventas del día</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#1e8a5e' }}>$450.000</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#1e8a5e' }}>
+                  ${ventasDelDia.toLocaleString('es-CO')}
+                </div>
               </div>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Bajo inventario</div>
@@ -69,7 +121,9 @@ function Dashboard() {
               </div>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Predicción</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#1e8a5e' }}>Alta demanda</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: prediccionNivel === 'Alto' ? '#f85149' : '#1e8a5e' }}>
+                  {prediccionNivel === 'Alto' ? 'Alta demanda' : prediccionNivel === 'Normal' ? 'Demanda normal' : prediccionNivel}
+                </div>
               </div>
             </div>
 

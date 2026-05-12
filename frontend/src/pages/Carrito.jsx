@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 function Carrito() {
   const [carrito, setCarrito] = useState([])
+  const navigate = useNavigate()
 
   useEffect(() => {
     const c = JSON.parse(localStorage.getItem('carrito')) || []
@@ -17,11 +18,9 @@ function Carrito() {
     localStorage.setItem('carrito', JSON.stringify(nuevo))
   }
 
-  function finalizar() {
+  function irACheckout() {
     if (carrito.length === 0) return
-    alert('✅ ¡Compra finalizada! Gracias por tu pedido.')
-    setCarrito([])
-    localStorage.setItem('carrito', JSON.stringify([]))
+    navigate('/checkout')
   }
 
   return (
@@ -76,12 +75,12 @@ function Carrito() {
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1e8a5e', fontSize: '1.1rem', fontWeight: '700', borderTop: '1px solid #e1e4e8', paddingTop: '12px' }}>
                 <span>Total</span><span>${total.toLocaleString('es-CO')}</span>
               </div>
-              <button onClick={finalizar} style={{
+              <button onClick={irACheckout} style={{
                 background: '#1e8a5e', border: 'none', color: '#fff',
                 borderRadius: '8px', padding: '12px', fontWeight: '600',
                 width: '100%', marginTop: '16px', cursor: 'pointer', fontSize: '0.95rem'
               }}>
-                Finalizar compra
+                Proceder al Pago
               </button>
             </div>
           </div>
