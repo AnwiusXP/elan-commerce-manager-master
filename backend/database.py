@@ -3,20 +3,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Se prefiere usar variables de entorno para Docker
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:1234@localhost:5432/elan_db"
-)
+# Intentar obtener la URL de Render, si no, usar la local
+db_url = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URL")
 
-# Render proporciona "postgres://" pero SQLAlchemy moderno requiere "postgresql://"
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    print(f"[DB] URL convertida de postgres:// a postgresql://")
+if not db_url or not db_url.startswith("postgres"):
+    db_url = "postgresql://postgres:1234@localhost:5432/elan_db"
 
-SQLALCHEMY_DATABASE_URL = DATABASE_URL
+# Corrección de prefijo obligatoria para SQLAlchemy >= 1.4
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(db_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
