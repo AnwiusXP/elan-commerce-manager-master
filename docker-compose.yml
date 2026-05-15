@@ -1,0 +1,73 @@
+services:
+  # Base de Datos
+  db:
+    image: postgres:15
+    container_name: ecm_db
+    restart: always
+    environment:
+      POSTGRES_USER: user_elan
+      POSTGRES_PASSWORD: password_elan
+      POSTGRES_DB: elan_db
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - elan-network
+
+  # Microservicio de IA (FastAPI)
+  backend-ia:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ecm_backend_ia
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql://user_elan:password_elan@db:5432/elan_db
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+    networks:
+      - elan-network
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: ecm_frontend
+    expose:
+      - "5173"
+    depends_on:
+      - backend-ia
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - elan-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ecm_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend-ia
+    networks:
+      - elan-network
+
+volumes:
+  postgres_data:
+
+networks:
+  elan-network:
+    driver: bridge
