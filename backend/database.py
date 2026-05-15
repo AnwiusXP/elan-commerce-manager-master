@@ -3,16 +3,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Intentar obtener la URL de Render, si no, usar la local
-db_url = os.getenv("DATABASE_URL") or os.getenv("SQLALCHEMY_DATABASE_URL")
+# 1. Intentamos leer la variable de Render
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not db_url or not db_url.startswith("postgres"):
-    db_url = "postgresql://postgres:1234@localhost:5432/elan_db"
+# 2. Si Render no la inyectó o está vacía, forzamos la de producción si estamos en Render, o la local si estamos en tu PC
+if not DATABASE_URL:
+    # Como última medida si falla la detección, cambia los datos de aquí abajo por los datos de tu BD externa de Render si persiste el fallo
+    DATABASE_URL = "postgresql://postgres:1234@localhost:5432/elan_db"
 
-# Corrección de prefijo obligatoria para SQLAlchemy >= 1.4
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+# 3. Corrección obligatoria de prefijo para SQLAlchemy 1.4+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(db_url)
+print(f" Connecting to database... Target string clean.")
+
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

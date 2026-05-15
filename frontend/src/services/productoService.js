@@ -1,8 +1,8 @@
 import api from './api'
 
 export const getProductos = async () => {
-  const res = await api.get('/productos')
-  return res.data
+  const response = await api.get('/api/productos')
+  return response.data
 }
 
 export const crearProducto = async (producto) => {
