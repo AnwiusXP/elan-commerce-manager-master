@@ -57,14 +57,14 @@ Base.metadata.create_all(bind=engine)
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 origins = [
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "https://elan-commerce-manager-master-1.onrender.com",
     frontend_url,
 ]
 
 # 1. Configuración de CORS antes de montar rutas
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite cualquier origen para compatibilidad con Render
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
