@@ -21,7 +21,7 @@ function Catalogo() {
     setCargando(true)
     try {
       // Consume the public endpoint that only returns products with stock > 0
-      const res = await api.get('/catalogo')
+      const res = await api.get('/api/catalogo')
       setProductos(res.data)
     } catch (error) {
       console.error('Error cargando el catálogo:', error)

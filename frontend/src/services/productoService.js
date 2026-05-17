@@ -6,16 +6,16 @@ export const getProductos = async () => {
 }
 
 export const crearProducto = async (producto) => {
-  const res = await api.post('/productos', producto)
+  const res = await api.post('/api/productos', producto)
   return res.data
 }
 
 export const editarProducto = async (id, producto) => {
-  const res = await api.put(`/productos/${id}`, producto)
+  const res = await api.put(`/api/productos/${id}`, producto)
   return res.data
 }
 
 export const eliminarProducto = async (id) => {
-  await api.delete(`/productos/${id}`)
+  await api.delete(`/api/productos/${id}`)
   return { ok: true }
 }

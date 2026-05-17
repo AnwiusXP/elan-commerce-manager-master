@@ -1,12 +1,12 @@
 import api from './api'
 
 export const getVentas = async () => {
-  const res = await api.get('/ventas')
+  const res = await api.get('/api/ventas')
   return res.data
 }
 
 export const registrarVenta = async (items) => {
-  const res = await api.post('/ventas', { items })
+  const res = await api.post('/api/ventas', { items })
   return { ok: true, venta: res.data }
 }
 
@@ -17,7 +17,7 @@ export const registrarVenta = async (items) => {
  */
 export const checkout = async (items, pago) => {
   try {
-    const res = await api.post('/checkout', { items, pago })
+    const res = await api.post('/api/checkout', { items, pago })
     return { ok: true, data: res.data }
   } catch (error) {
     const detail = error?.response?.data?.detail

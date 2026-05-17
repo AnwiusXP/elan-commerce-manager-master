@@ -18,7 +18,7 @@ export default function ActivationPage() {
       return
     }
 
-    api.get(`/auth/activate/${token}`)
+    api.get(`/api/auth/activate/${token}`)
       .then(() => {
         setStatus('success')
         setMessage('¡Tu cuenta ha sido activada! Ya puedes iniciar sesión.')

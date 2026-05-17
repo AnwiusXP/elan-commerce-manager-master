@@ -2,7 +2,7 @@ import api from './api'
 
 export const login = async (usuario, contrasena) => {
   try {
-    const res = await api.post('/login', { usuario, contrasena })
+    const res = await api.post('/api/login', { usuario, contrasena })
     localStorage.setItem('token', res.data.access_token)
     return { ok: true }
   } catch (error) {
@@ -12,7 +12,7 @@ export const login = async (usuario, contrasena) => {
 
 export const logout = async () => {
   try {
-    await api.post('/logout')
+    await api.post('/api/logout')
   } catch (error) {
     // Ignorar error de logout, pero eliminar el token local.
   }
@@ -25,7 +25,7 @@ export const estaAutenticado = () => {
 
 export const forgotPassword = async (email) => {
   try {
-    const res = await api.post('/auth/forgot-password', { email })
+    const res = await api.post('/api/auth/forgot-password', { email })
     return { ok: true, mensaje: res.data.message }
   } catch (error) {
     return { ok: false, mensaje: error?.response?.data?.detail || 'Error al solicitar recuperación.' }
@@ -34,7 +34,7 @@ export const forgotPassword = async (email) => {
 
 export const verifyOTP = async (email, token) => {
   try {
-    const res = await api.post('/auth/verify-otp', { email, token })
+    const res = await api.post('/api/auth/verify-otp', { email, token })
     return { ok: true, mensaje: res.data.message }
   } catch (error) {
     return { ok: false, mensaje: error?.response?.data?.detail || 'Código inválido o expirado.' }
@@ -43,7 +43,7 @@ export const verifyOTP = async (email, token) => {
 
 export const resetPassword = async (email, token, new_password) => {
   try {
-    const res = await api.post('/auth/reset-password', { email, token, new_password })
+    const res = await api.post('/api/auth/reset-password', { email, token, new_password })
     return { ok: true, mensaje: res.data.message }
   } catch (error) {
     return { ok: false, mensaje: error?.response?.data?.detail || 'Error al restablecer contraseña.' }

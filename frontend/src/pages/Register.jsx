@@ -53,7 +53,7 @@ export default function Register() {
 
     setCargando(true)
     try {
-      await api.post('/users', { username, email, password })
+      await api.post('/api/users', { username, email, password })
       setSuccess(true)
     } catch (err) {
       setError(err?.response?.data?.detail || 'Error al crear la cuenta.')

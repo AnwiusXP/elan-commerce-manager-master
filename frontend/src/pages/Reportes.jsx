@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -21,7 +21,7 @@ function Reportes() {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/productos');
+        const response = await api.get('/api/productos');
         setProductos(response.data);
       } catch (err) {
         console.error('Error cargando productos:', err);
@@ -39,7 +39,7 @@ function Reportes() {
     setCargando(true);
     setError(null);
     try {
-      const response = await axios.get(`http://localhost:8000/api/ia/predict?producto=${productoId}`);
+      const response = await api.get(`/api/ia/predict?producto=${productoId}`);
       setPrediccion(response.data);
     } catch (err) {
       setError('Error en la conexión con el motor de IA.');
