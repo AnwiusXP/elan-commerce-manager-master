@@ -192,11 +192,11 @@ function Inventario() {
                 <div className="inv-kpi-sub">Sin ventas en 60 días</div>
               </div>
               <div className="inv-kpi-card accent-blue">
-                <div className="inv-kpi-label">Productos Activos</div>
+                <div className="inv-kpi-label">Ingresos Netos</div>
                 <div className="inv-kpi-value blue">
-                  {(resumen?.total_productos || 0) - (resumen?.estancados || 0) - (resumen?.sin_stock || 0)}
+                  {formatCurrency(resumen?.total_ingresos)}
                 </div>
-                <div className="inv-kpi-sub">Con flujo normal de ventas</div>
+                <div className="inv-kpi-sub">{resumen?.unidades_vendidas || 0} uds vendidas • {resumen?.reembolsos || 0} reembolsos</div>
               </div>
             </div>
 
@@ -230,6 +230,7 @@ function Inventario() {
                     <th>Stock</th>
                     <th>Mín.</th>
                     <th>Ventas (30d)</th>
+                    <th>Total Vendidas</th>
                     <th>Vel. Venta</th>
                     <th>Días Restantes</th>
                     <th>Estado</th>
@@ -239,7 +240,7 @@ function Inventario() {
                 <tbody>
                   {productosFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan={9}>
+                      <td colSpan={10}>
                         <div className="inv-empty">
                           <div className="inv-empty-icon">📦</div>
                           No se encontraron productos con este filtro
@@ -267,6 +268,7 @@ function Inventario() {
                           </td>
                           <td className="muted">{p.stockMin}</td>
                           <td>{p.ventas_30d} uds</td>
+                          <td>{p.total_vendidas || 0} uds</td>
                           <td>
                             <div className="inv-speed">
                               <span style={{ fontSize: '0.84rem', minWidth: '44px' }}>

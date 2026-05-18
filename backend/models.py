@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Boolean, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
@@ -35,20 +35,42 @@ class Producto(Base):
     stockMin = Column(Integer)
 
     movimientos = relationship("MovimientoInventario", back_populates="producto")
+    venta_items = relationship("VentaItem", back_populates="producto")
 
 class Venta(Base):
     __tablename__ = "ventas"
+    __table_args__ = (
+        Index('ix_ventas_estado', 'estado'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    items = Column(Text)  # JSON string
+    items = Column(Text)  # JSON string (legacy, se mantiene por compatibilidad)
     total = Column(Float)
     metodo_pago = Column(String, default="DIRECTO")
-    estado = Column(String, default="APROBADA")
+    estado = Column(String, default="APROBADA")  # APROBADA | RECHAZADA | REEMBOLSADA | CANCELADA
     referencia_pago = Column(String, nullable=True)
     fecha = Column(DateTime, default=func.now())
 
     usuario = relationship("User", back_populates="ventas")
+    detalles = relationship("VentaItem", back_populates="venta", cascade="all, delete-orphan")
+
+
+class VentaItem(Base):
+    """Tabla normalizada de líneas de venta. Enlaza cada Venta con sus Productos
+    mediante FK, permitiendo cálculos dinámicos de unidades vendidas por producto."""
+    __tablename__ = "venta_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    venta_id = Column(Integer, ForeignKey("ventas.id", ondelete="CASCADE"), nullable=False, index=True)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
+    nombre_producto = Column(String, nullable=False)
+    cantidad = Column(Integer, nullable=False)
+    precio_unitario = Column(Float, nullable=False)
+    subtotal = Column(Float, nullable=False)
+
+    venta = relationship("Venta", back_populates="detalles")
+    producto = relationship("Producto", back_populates="venta_items")
 
 class MovimientoInventario(Base):
     __tablename__ = "movimientos_inventario"

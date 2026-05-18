@@ -5,9 +5,30 @@ export const getVentas = async () => {
   return res.data
 }
 
+export const getVentasHistorial = async () => {
+  const res = await api.get('/api/ventas/historial')
+  return res.data
+}
+
 export const registrarVenta = async (items) => {
   const res = await api.post('/api/ventas', { items })
   return { ok: true, venta: res.data }
+}
+
+/**
+ * Procesar reembolso de una venta.
+ * @param {number} venta_id - ID de la venta a reembolsar
+ * @param {Array|null} items - Lista de {producto_id, cantidad} para reembolso parcial, o null para total
+ * @param {string|null} motivo - Razón del reembolso
+ */
+export const procesarReembolso = async (venta_id, items = null, motivo = null) => {
+  try {
+    const res = await api.post('/api/ventas/reembolso', { venta_id, items, motivo })
+    return { ok: true, data: res.data }
+  } catch (error) {
+    const detail = error?.response?.data?.detail
+    return { ok: false, mensaje: detail || 'Error al procesar el reembolso.' }
+  }
 }
 
 /**

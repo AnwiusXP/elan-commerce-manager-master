@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getProductos } from '../services/productoService'
-import { registrarVenta } from '../services/ventaService'
+import { registrarVenta, getVentasHistorial, procesarReembolso } from '../services/ventaService'
 
 function Ventas() {
   const [productos, setProductos] = useState([])
@@ -11,6 +11,11 @@ function Ventas() {
   const [items, setItems] = useState([])
   const [alerta, setAlerta] = useState(false)
   const [exito, setExito] = useState(false)
+  
+  // Historial state
+  const [tabIndex, setTabIndex] = useState(0) // 0 = Nueva Venta, 1 = Historial
+  const [historial, setHistorial] = useState([])
+  const [cargandoHistorial, setCargandoHistorial] = useState(false)
 
   useEffect(() => {
     cargarProductos()
@@ -22,6 +27,17 @@ function Ventas() {
     setProductos(data)
     setCargando(false)
   }
+
+  async function cargarHistorial() {
+    setCargandoHistorial(true)
+    const data = await getVentasHistorial()
+    setHistorial(data)
+    setCargandoHistorial(false)
+  }
+
+  useEffect(() => {
+    if (tabIndex === 1) cargarHistorial()
+  }, [tabIndex])
 
   const total = items.reduce((a, it) => a + it.precio * it.cantidad, 0)
 
@@ -57,6 +73,17 @@ function Ventas() {
     }
   }
 
+  async function handleReembolso(ventaId) {
+    if (!window.confirm(`¿Estás seguro de reembolsar la venta #${ventaId}?`)) return
+    const res = await procesarReembolso(ventaId, null, 'Reembolso procesado desde Historial')
+    if (res.ok) {
+      alert('Reembolso procesado correctamente')
+      cargarHistorial()
+    } else {
+      alert(`Error: ${res.mensaje}`)
+    }
+  }
+
   const inputStyle = {
     width: '100%', background: '#0d1117', border: '1px solid #30363d',
     color: '#e6edf3', borderRadius: '8px', padding: '10px 14px',
@@ -67,13 +94,24 @@ function Ventas() {
     <div style={{ display: 'flex' }}>
       <Sidebar active="Ventas" />
       <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '28px' }}>
-          Registro de Ventas
-        </h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>Gestión de Ventas</h1>
+          <div style={{ display: 'flex', gap: '10px', background: '#0d1117', padding: '4px', borderRadius: '8px', border: '1px solid #30363d' }}>
+            <button 
+              onClick={() => setTabIndex(0)}
+              style={{ background: tabIndex === 0 ? '#21262d' : 'transparent', border: 'none', color: tabIndex === 0 ? '#e6edf3' : '#8b949e', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+            >Nueva Venta</button>
+            <button 
+              onClick={() => setTabIndex(1)}
+              style={{ background: tabIndex === 1 ? '#21262d' : 'transparent', border: 'none', color: tabIndex === 1 ? '#e6edf3' : '#8b949e', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+            >Historial y Reembolsos</button>
+          </div>
+        </div>
 
-        {cargando ? (
-          <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando productos...</div>
-        ) : (
+        {tabIndex === 0 ? (
+          cargando ? (
+            <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando productos...</div>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '28px' }}>
 
@@ -136,6 +174,54 @@ function Ventas() {
               </button>
             </div>
           </div>
+        ) : (
+          cargandoHistorial ? (
+            <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
+          ) : (
+            <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '24px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ color: '#8b949e', fontSize: '0.85rem', textTransform: 'uppercase', borderBottom: '1px solid #30363d' }}>
+                    <th style={{ padding: '12px 8px' }}>ID</th>
+                    <th style={{ padding: '12px 8px' }}>Fecha</th>
+                    <th style={{ padding: '12px 8px' }}>Monto</th>
+                    <th style={{ padding: '12px 8px' }}>Método</th>
+                    <th style={{ padding: '12px 8px' }}>Estado</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'right' }}>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.map(v => (
+                    <tr key={v.id} style={{ borderBottom: '1px solid #30363d' }}>
+                      <td style={{ padding: '12px 8px', color: '#c9d1d9' }}>#{v.id}</td>
+                      <td style={{ padding: '12px 8px', color: '#8b949e' }}>{new Date(v.fecha).toLocaleString('es-CO')}</td>
+                      <td style={{ padding: '12px 8px', color: '#1e8a5e', fontWeight: '600' }}>${v.total.toLocaleString('es-CO')}</td>
+                      <td style={{ padding: '12px 8px', color: '#8b949e' }}>{v.metodo_pago}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <span style={{
+                          padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600',
+                          background: v.estado === 'APROBADA' ? 'rgba(45,212,139,0.1)' : v.estado === 'REEMBOLSADA' ? 'rgba(227,179,65,0.1)' : 'rgba(248,81,73,0.1)',
+                          color: v.estado === 'APROBADA' ? '#2dd48b' : v.estado === 'REEMBOLSADA' ? '#e3b341' : '#f85149'
+                        }}>
+                          {v.estado}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                        {v.estado === 'APROBADA' && (
+                          <button onClick={() => handleReembolso(v.id)} style={{ background: 'transparent', border: '1px solid #e3b341', color: '#e3b341', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>
+                            Reembolsar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {historial.length === 0 && (
+                    <tr><td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#8b949e' }}>No hay ventas registradas.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
     </div>

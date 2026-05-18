@@ -16,7 +16,7 @@ import uuid
 
 # Importaciones locales de base de datos y modelos
 from database import engine, Base
-from models import Producto, Venta, MovimientoInventario, PasswordResetToken, User
+from models import Producto, Venta, VentaItem, MovimientoInventario, PasswordResetToken, User
 from auth import (
     authenticate_user,
     create_access_token,
@@ -135,6 +135,17 @@ class AjusteInventarioRequest(BaseModel):
     tipo: str  # ENTRADA_COMPRA, AJUSTE_MERMA, DEVOLUCION
     cantidad: int  # Siempre positivo; el signo se determina por el tipo
     nota: Optional[str] = None
+
+
+class ReembolsoItemRequest(BaseModel):
+    producto_id: int
+    cantidad: int  # Unidades a devolver
+
+
+class ReembolsoRequest(BaseModel):
+    venta_id: int
+    items: Optional[List[ReembolsoItemRequest]] = None  # None = reembolso total
+    motivo: Optional[str] = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -364,8 +375,9 @@ async def activate_account(token: str, db: Session = Depends(get_db)):
 async def get_ventas(
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    """Obtiene el historial para alimentar XGBoost"""
-    return db.query(Venta).all()
+    """Obtiene el historial de ventas activas (APROBADA) para alimentar Dashboard y XGBoost.
+    Las ventas RECHAZADA, REEMBOLSADA o CANCELADA se excluyen de métricas."""
+    return db.query(Venta).filter(Venta.estado == "APROBADA").all()
 
 
 # --- CHECKOUT PÚBLICO (FLUJO DE PAGO SIMULADO) ---
@@ -523,6 +535,18 @@ async def checkout(req: CheckoutRequest, db: Session = Depends(get_db)):
                 .first()
             )
             producto.stock -= item_data["cantidad"]
+
+            # Registro normalizado en venta_items (FK a producto)
+            detalle = VentaItem(
+                venta_id=nueva_venta.id,
+                producto_id=item_data["producto_id"],
+                nombre_producto=item_data["nombre_producto"],
+                cantidad=item_data["cantidad"],
+                precio_unitario=item_data["precio"],
+                subtotal=item_data["precio"] * item_data["cantidad"],
+            )
+            db.add(detalle)
+
             movimiento = MovimientoInventario(
                 producto_id=item_data["producto_id"],
                 tipo="VENTA",
@@ -604,13 +628,25 @@ async def create_venta(
         db.add(nueva_venta)
         db.flush()  # Obtener el ID de la venta antes del commit
 
-        # 6. Registrar movimientos de inventario para cada item
+        # 6. Registrar VentaItems normalizados + movimientos de inventario
         for item_data in items_para_guardar:
             producto = (
                 db.query(Producto)
                 .filter(Producto.id == item_data["producto_id"])
                 .first()
             )
+
+            # Registro normalizado en venta_items (FK a producto)
+            detalle = VentaItem(
+                venta_id=nueva_venta.id,
+                producto_id=item_data["producto_id"],
+                nombre_producto=item_data["nombre_producto"],
+                cantidad=item_data["cantidad"],
+                precio_unitario=item_data["precio"],
+                subtotal=item_data["precio"] * item_data["cantidad"],
+            )
+            db.add(detalle)
+
             movimiento = MovimientoInventario(
                 producto_id=item_data["producto_id"],
                 tipo="VENTA",
@@ -818,12 +854,31 @@ async def inventario_resumen(
     ]
     estancados_count = len(estancados)
 
+    # ── Métricas de ventas enlazadas (solo APROBADA, excluye REEMBOLSADA/CANCELADA) ──
+    ventas_activas = db.query(Venta).filter(Venta.estado == "APROBADA").all()
+    total_ingresos = sum(v.total for v in ventas_activas)
+    total_ventas_count = len(ventas_activas)
+
+    ventas_reembolsadas = db.query(Venta).filter(Venta.estado == "REEMBOLSADA").count()
+
+    # Unidades vendidas netas (APROBADA) desde venta_items
+    unidades_vendidas_netas = (
+        db.query(sql_func.coalesce(sql_func.sum(VentaItem.cantidad), 0))
+        .join(Venta, VentaItem.venta_id == Venta.id)
+        .filter(Venta.estado == "APROBADA")
+        .scalar()
+    )
+
     return {
         "valor_total": valor_total,
         "total_productos": len(productos),
         "alertas_stock_bajo": alertas_count,
         "sin_stock": sin_stock_count,
         "estancados": estancados_count,
+        "total_ingresos": total_ingresos,
+        "total_ventas": total_ventas_count,
+        "reembolsos": ventas_reembolsadas,
+        "unidades_vendidas": unidades_vendidas_netas,
     }
 
 
@@ -840,32 +895,41 @@ async def inventario_productos(
     hace_30_dias = datetime.utcnow() - timedelta(days=30)
     hace_60_dias = datetime.utcnow() - timedelta(days=60)
 
-    # Obtener todas las ventas de los últimos 30 días agrupadas por producto
-    movimientos_30d = (
-        db.query(MovimientoInventario)
-        .filter(
-            MovimientoInventario.tipo == "VENTA",
-            MovimientoInventario.fecha >= hace_30_dias,
+    # ── Ventas netas (30d) por producto desde venta_items + ventas APROBADAS ──
+    ventas_30d_query = (
+        db.query(
+            VentaItem.producto_id,
+            sql_func.coalesce(sql_func.sum(VentaItem.cantidad), 0).label("total_qty"),
         )
+        .join(Venta, VentaItem.venta_id == Venta.id)
+        .filter(Venta.estado == "APROBADA", Venta.fecha >= hace_30_dias)
+        .group_by(VentaItem.producto_id)
         .all()
     )
+    ventas_por_producto = {row.producto_id: int(row.total_qty) for row in ventas_30d_query}
 
-    # Obtener IDs de productos con ventas en los últimos 60 días
-    movimientos_60d = (
-        db.query(MovimientoInventario)
-        .filter(
-            MovimientoInventario.tipo == "VENTA",
-            MovimientoInventario.fecha >= hace_60_dias,
+    # ── Ventas totales (all-time) por producto, solo APROBADAS ──
+    ventas_total_query = (
+        db.query(
+            VentaItem.producto_id,
+            sql_func.coalesce(sql_func.sum(VentaItem.cantidad), 0).label("total_qty"),
         )
+        .join(Venta, VentaItem.venta_id == Venta.id)
+        .filter(Venta.estado == "APROBADA")
+        .group_by(VentaItem.producto_id)
         .all()
     )
-    ids_con_venta_60d = set(m.producto_id for m in movimientos_60d)
+    ventas_totales_producto = {row.producto_id: int(row.total_qty) for row in ventas_total_query}
 
-    # Calcular ventas por producto en 30 días
-    ventas_por_producto = {}
-    for m in movimientos_30d:
-        pid = m.producto_id
-        ventas_por_producto[pid] = ventas_por_producto.get(pid, 0) + abs(m.cantidad)
+    # ── IDs con ventas activas en 60d (para detectar estancados) ──
+    ventas_60d_query = (
+        db.query(VentaItem.producto_id)
+        .join(Venta, VentaItem.venta_id == Venta.id)
+        .filter(Venta.estado == "APROBADA", Venta.fecha >= hace_60_dias)
+        .distinct()
+        .all()
+    )
+    ids_con_venta_60d = set(row.producto_id for row in ventas_60d_query)
 
     resultado = []
     for p in productos:
@@ -899,6 +963,7 @@ async def inventario_productos(
                 "stock": p.stock,
                 "stockMin": p.stockMin,
                 "ventas_30d": unidades_vendidas_30d,
+                "total_vendidas": ventas_totales_producto.get(p.id, 0),
                 "velocidad_diaria": velocidad_diaria,
                 "dias_restantes": dias_restantes,
                 "estado": estado,
@@ -1001,6 +1066,149 @@ async def inventario_ajuste(
         "nuevo_stock": producto.stock,
         "movimiento_tipo": ajuste.tipo,
     }
+
+
+# ========================================================================
+# MÓDULO DE REEMBOLSOS — Consistencia Transaccional Venta ↔ Inventario
+# ========================================================================
+
+
+@app.post("/api/ventas/reembolso")
+async def procesar_reembolso(
+    req: ReembolsoRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Procesa un reembolso en una ÚNICA transacción ACID:
+    1. Valida que la venta exista y esté en estado APROBADA
+    2. Devuelve las unidades al stock de cada producto
+    3. Registra movimientos de inventario tipo DEVOLUCION
+    4. Marca la venta como REEMBOLSADA
+    Soporta reembolso total (sin items) o parcial (con items específicos).
+    """
+    venta = db.query(Venta).filter(Venta.id == req.venta_id).first()
+    if not venta:
+        raise HTTPException(status_code=404, detail="Venta no encontrada.")
+
+    if venta.estado != "APROBADA":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se pueden reembolsar ventas APROBADAS. Estado actual: {venta.estado}",
+        )
+
+    try:
+        # Parsear items originales de la venta
+        items_originales = json.loads(venta.items) if venta.items else []
+
+        # Determinar qué items reembolsar
+        if req.items:
+            # Reembolso parcial: validar que los items existan en la venta original
+            items_a_devolver = []
+            for req_item in req.items:
+                original = next(
+                    (i for i in items_originales if i["producto_id"] == req_item.producto_id),
+                    None,
+                )
+                if not original:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Producto ID {req_item.producto_id} no existe en la venta #{req.venta_id}.",
+                    )
+                if req_item.cantidad > original["cantidad"]:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Cantidad a devolver ({req_item.cantidad}) excede la vendida ({original['cantidad']}) para producto ID {req_item.producto_id}.",
+                    )
+                items_a_devolver.append({
+                    "producto_id": req_item.producto_id,
+                    "cantidad": req_item.cantidad,
+                    "precio": original["precio"],
+                })
+        else:
+            # Reembolso total: devolver todos los items
+            items_a_devolver = [
+                {"producto_id": i["producto_id"], "cantidad": i["cantidad"], "precio": i["precio"]}
+                for i in items_originales
+            ]
+
+        monto_reembolsado = 0.0
+        productos_actualizados = []
+
+        for item in items_a_devolver:
+            producto = db.query(Producto).filter(Producto.id == item["producto_id"]).first()
+            if not producto:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Producto ID {item['producto_id']} ya no existe en el catálogo.",
+                )
+
+            # a) Sumar unidades devueltas al stock
+            producto.stock += item["cantidad"]
+
+            # b) Registrar movimiento de inventario tipo DEVOLUCION
+            movimiento = MovimientoInventario(
+                producto_id=item["producto_id"],
+                tipo="DEVOLUCION",
+                cantidad=item["cantidad"],  # Positivo = entrada
+                stock_resultante=producto.stock,
+                referencia_id=venta.id,
+                nota=req.motivo or f"Reembolso de Venta #{venta.id}",
+            )
+            db.add(movimiento)
+
+            monto_reembolsado += item["precio"] * item["cantidad"]
+            productos_actualizados.append({
+                "producto_id": producto.id,
+                "nombre": producto.nombre,
+                "unidades_devueltas": item["cantidad"],
+                "nuevo_stock": producto.stock,
+            })
+
+        # c) Actualizar estado de la venta
+        venta.estado = "REEMBOLSADA"
+
+        # Commit atómico: stock + movimientos + estado de venta
+        db.commit()
+
+        return {
+            "status": "success",
+            "venta_id": venta.id,
+            "estado_anterior": "APROBADA",
+            "estado_nuevo": "REEMBOLSADA",
+            "monto_reembolsado": monto_reembolsado,
+            "productos_actualizados": productos_actualizados,
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno al procesar reembolso: {str(e)}",
+        )
+
+
+@app.get("/api/ventas/historial")
+async def get_ventas_historial(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    """Historial completo de ventas incluyendo todos los estados (para admin)."""
+    ventas = db.query(Venta).order_by(Venta.fecha.desc()).limit(200).all()
+    resultado = []
+    for v in ventas:
+        resultado.append({
+            "id": v.id,
+            "total": v.total,
+            "estado": v.estado,
+            "metodo_pago": v.metodo_pago,
+            "referencia_pago": v.referencia_pago,
+            "fecha": v.fecha.isoformat() if v.fecha else None,
+            "items": json.loads(v.items) if v.items else [],
+        })
+    return resultado
 
 
 @app.get("/api/inventario/alertas")
