@@ -16,7 +16,14 @@ import uuid
 
 # Importaciones locales de base de datos y modelos
 from database import engine, Base
-from models import Producto, Venta, VentaItem, MovimientoInventario, PasswordResetToken, User
+from models import (
+    Producto,
+    Venta,
+    VentaItem,
+    MovimientoInventario,
+    PasswordResetToken,
+    User,
+)
 from auth import (
     authenticate_user,
     create_access_token,
@@ -98,7 +105,7 @@ class ProductoBase(BaseModel):
     stockMin: int
 
 
-class VentaItem(BaseModel):
+class VentaItem(BaseModel):  # noqa: F811
     producto_id: int
     nombre_producto: str
     cantidad: int
@@ -382,7 +389,7 @@ async def get_ventas(
 
 # --- CHECKOUT PÚBLICO (FLUJO DE PAGO SIMULADO) ---
 
-import hashlib
+import hashlib  # noqa: E402
 
 
 def _simular_pago(pago: dict, monto: float) -> dict:
@@ -827,13 +834,16 @@ async def inventario_resumen(
     """
     productos = db.query(Producto).all()
 
-    # Valor total del inventario (stock * precio de cada producto)
-    valor_total = sum(p.stock * p.precio for p in productos)
+    # Valor total del inventario (stock * precio de cada producto) - blindado contra None
+    valor_total = sum((p.stock or 0) * (p.precio or 0) for p in productos)
 
-    # Productos con stock crítico (stock <= stockMin)
-    productos_criticos = [p for p in productos if p.stock <= p.stockMin]
+    # Productos con stock crítico (stock <= stockMin) - blindado contra None
+    productos_criticos = [
+        p for p in productos
+        if (p.stock or 0) <= (p.stockMin if p.stockMin is not None else 0)
+    ]
     alertas_count = len(productos_criticos)
-    sin_stock_count = len([p for p in productos if p.stock == 0])
+    sin_stock_count = len([p for p in productos if (p.stock or 0) == 0])
 
     # Productos estancados: con stock > 0 pero sin ventas en los últimos 60 días
     hace_60_dias = datetime.utcnow() - timedelta(days=60)
@@ -850,13 +860,13 @@ async def inventario_resumen(
         ids_con_venta_reciente.add(m.producto_id)
 
     estancados = [
-        p for p in productos if p.stock > 0 and p.id not in ids_con_venta_reciente
+        p for p in productos if (p.stock or 0) > 0 and p.id not in ids_con_venta_reciente
     ]
     estancados_count = len(estancados)
 
     # ── Métricas de ventas enlazadas (solo APROBADA, excluye REEMBOLSADA/CANCELADA) ──
     ventas_activas = db.query(Venta).filter(Venta.estado == "APROBADA").all()
-    total_ingresos = sum(v.total for v in ventas_activas)
+    total_ingresos = sum(v.total or 0 for v in ventas_activas)
     total_ventas_count = len(ventas_activas)
 
     ventas_reembolsadas = db.query(Venta).filter(Venta.estado == "REEMBOLSADA").count()
@@ -906,7 +916,9 @@ async def inventario_productos(
         .group_by(VentaItem.producto_id)
         .all()
     )
-    ventas_por_producto = {row.producto_id: int(row.total_qty) for row in ventas_30d_query}
+    ventas_por_producto = {
+        row.producto_id: int(row.total_qty) for row in ventas_30d_query
+    }
 
     # ── Ventas totales (all-time) por producto, solo APROBADAS ──
     ventas_total_query = (
@@ -919,7 +931,9 @@ async def inventario_productos(
         .group_by(VentaItem.producto_id)
         .all()
     )
-    ventas_totales_producto = {row.producto_id: int(row.total_qty) for row in ventas_total_query}
+    ventas_totales_producto = {
+        row.producto_id: int(row.total_qty) for row in ventas_total_query
+    }
 
     # ── IDs con ventas activas en 60d (para detectar estancados) ──
     ventas_60d_query = (
@@ -949,10 +963,10 @@ async def inventario_productos(
         else:
             estado = "OPTIMO"
 
-        # Días de stock restante estimados
+        # Días de stock restante estimados - blindado contra None y división por cero
         dias_restantes = None
-        if velocidad_diaria > 0:
-            dias_restantes = round(p.stock / velocidad_diaria)
+        if velocidad_diaria > 0 and (p.stock or 0) > 0:
+            dias_restantes = round((p.stock or 0) / velocidad_diaria)
 
         resultado.append(
             {
@@ -960,8 +974,8 @@ async def inventario_productos(
                 "nombre": p.nombre,
                 "categoria": p.categoria,
                 "precio": p.precio,
-                "stock": p.stock,
-                "stockMin": p.stockMin,
+                "stock": p.stock if p.stock is not None else 0,
+                "stockMin": p.stockMin if p.stockMin is not None else 0,
                 "ventas_30d": unidades_vendidas_30d,
                 "total_vendidas": ventas_totales_producto.get(p.id, 0),
                 "velocidad_diaria": velocidad_diaria,
@@ -1107,7 +1121,11 @@ async def procesar_reembolso(
             items_a_devolver = []
             for req_item in req.items:
                 original = next(
-                    (i for i in items_originales if i["producto_id"] == req_item.producto_id),
+                    (
+                        i
+                        for i in items_originales
+                        if i["producto_id"] == req_item.producto_id
+                    ),
                     None,
                 )
                 if not original:
@@ -1120,15 +1138,21 @@ async def procesar_reembolso(
                         status_code=400,
                         detail=f"Cantidad a devolver ({req_item.cantidad}) excede la vendida ({original['cantidad']}) para producto ID {req_item.producto_id}.",
                     )
-                items_a_devolver.append({
-                    "producto_id": req_item.producto_id,
-                    "cantidad": req_item.cantidad,
-                    "precio": original["precio"],
-                })
+                items_a_devolver.append(
+                    {
+                        "producto_id": req_item.producto_id,
+                        "cantidad": req_item.cantidad,
+                        "precio": original["precio"],
+                    }
+                )
         else:
             # Reembolso total: devolver todos los items
             items_a_devolver = [
-                {"producto_id": i["producto_id"], "cantidad": i["cantidad"], "precio": i["precio"]}
+                {
+                    "producto_id": i["producto_id"],
+                    "cantidad": i["cantidad"],
+                    "precio": i["precio"],
+                }
                 for i in items_originales
             ]
 
@@ -1136,7 +1160,9 @@ async def procesar_reembolso(
         productos_actualizados = []
 
         for item in items_a_devolver:
-            producto = db.query(Producto).filter(Producto.id == item["producto_id"]).first()
+            producto = (
+                db.query(Producto).filter(Producto.id == item["producto_id"]).first()
+            )
             if not producto:
                 raise HTTPException(
                     status_code=404,
@@ -1158,12 +1184,14 @@ async def procesar_reembolso(
             db.add(movimiento)
 
             monto_reembolsado += item["precio"] * item["cantidad"]
-            productos_actualizados.append({
-                "producto_id": producto.id,
-                "nombre": producto.nombre,
-                "unidades_devueltas": item["cantidad"],
-                "nuevo_stock": producto.stock,
-            })
+            productos_actualizados.append(
+                {
+                    "producto_id": producto.id,
+                    "nombre": producto.nombre,
+                    "unidades_devueltas": item["cantidad"],
+                    "nuevo_stock": producto.stock,
+                }
+            )
 
         # c) Actualizar estado de la venta
         venta.estado = "REEMBOLSADA"
@@ -1199,15 +1227,17 @@ async def get_ventas_historial(
     ventas = db.query(Venta).order_by(Venta.fecha.desc()).limit(200).all()
     resultado = []
     for v in ventas:
-        resultado.append({
-            "id": v.id,
-            "total": v.total,
-            "estado": v.estado,
-            "metodo_pago": v.metodo_pago,
-            "referencia_pago": v.referencia_pago,
-            "fecha": v.fecha.isoformat() if v.fecha else None,
-            "items": json.loads(v.items) if v.items else [],
-        })
+        resultado.append(
+            {
+                "id": v.id,
+                "total": v.total,
+                "estado": v.estado,
+                "metodo_pago": v.metodo_pago,
+                "referencia_pago": v.referencia_pago,
+                "fecha": v.fecha.isoformat() if v.fecha else None,
+                "items": json.loads(v.items) if v.items else [],
+            }
+        )
     return resultado
 
 
