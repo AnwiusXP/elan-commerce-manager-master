@@ -174,6 +174,7 @@ function Ventas() {
               </button>
             </div>
           </div>
+          )
         ) : (
           cargandoHistorial ? (
             <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
