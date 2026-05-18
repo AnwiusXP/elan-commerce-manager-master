@@ -105,7 +105,7 @@ class ProductoBase(BaseModel):
     stockMin: int
 
 
-class VentaItem(BaseModel):  # noqa: F811
+class VentaItemRequest(BaseModel):
     producto_id: int
     nombre_producto: str
     cantidad: int
@@ -113,7 +113,7 @@ class VentaItem(BaseModel):  # noqa: F811
 
 
 class VentaRequest(BaseModel):
-    items: List[VentaItem]
+    items: List[VentaItemRequest]
 
 
 # --- ESQUEMAS DE CHECKOUT ---
@@ -133,7 +133,7 @@ class PagoPSE(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    items: List[VentaItem]
+    items: List[VentaItemRequest]
     pago: dict  # Acepta estructura dinámica de Nequi o PSE
 
 
