@@ -1,5 +1,5 @@
 # backend/main.py
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -65,15 +65,29 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Crear tablas si no existen
 Base.metadata.create_all(bind=engine)
 
-# 2. Configuración de CORS Robusta
-# Permitimos tanto localhost como la IP loopback para evitar bloqueos en el navegador
-# También leemos FRONTEND_URL del entorno (Render proporciona su propia URL)
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-origins = [
+# 2. Configuración de CORS Dinámica (Local + Producción)
+# Orígenes locales explícitos para desarrollo
+LOCAL_ORIGINS = [
     "http://localhost:5173",
-    "https://elan-commerce-manager-master-1.onrender.com",
-    frontend_url,
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
 ]
+
+# Leer FRONTEND_URL desde variable de entorno (Render injecta esta variable)
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+
+# Construir lista de orígenes: locales + producción (si está configurada)
+origins = LOCAL_ORIGINS.copy()
+if FRONTEND_URL:
+    origins.append(FRONTEND_URL)
+
+# Fallback para producción de Render (URL hardcodeada como respaldo)
+PRODUCTION_ORIGIN = "https://elan-commerce-manager-master-1.onrender.com"
+if PRODUCTION_ORIGIN not in origins:
+    origins.append(PRODUCTION_ORIGIN)
+
+print(f" 🌐 CORS configurado para: {origins}")
 
 # 1. Configuración de CORS antes de montar rutas
 app.add_middleware(
@@ -186,6 +200,10 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+
 # --- ENDPOINTS ---
 
 
@@ -229,12 +247,7 @@ async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_
 
     user = db.query(User).filter(User.email == req.email).first()
     if not user:
-        # Por seguridad no indicamos si el email existe o no
-        print(f"[AUTH] Email {req.email} no encontrado en BD (respuesta genérica)")
-        return {
-            "status": "success",
-            "message": "Si el correo está registrado, se ha enviado un código de recuperación.",
-        }
+        raise HTTPException(status_code=404, detail="Email no encontrado.")
 
     # Generar código numérico de 6 dígitos
     code = "".join(random.choices(string.digits, k=6))
@@ -749,7 +762,11 @@ async def list_users(
 
 
 @app.post("/api/users", response_model=UserResponse)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+async def create_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
+):
     # Validar que username sea alfanumerico
     import re
 
@@ -794,7 +811,10 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
     base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     activation_url = f"{base_url}/activate/{token}"
-    await send_activation_email(user.email, activation_url)
+    if background_tasks:
+        background_tasks.add_task(send_activation_email, user.email, activation_url)
+    else:
+        await send_activation_email(user.email, activation_url)
 
     return new_user
 
@@ -817,6 +837,30 @@ async def delete_user(
     db.delete(user)
     db.commit()
     return {"status": "success", "message": "Usuario eliminado correctamente."}
+
+
+@app.put("/api/users/{user_id}/status")
+async def update_user_status(
+    user_id: int,
+    status_update: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Actualiza el estado is_active de un usuario (toggle)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    user.is_active = status_update.is_active
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_active": user.is_active,
+    }
 
 
 # ========================================================================

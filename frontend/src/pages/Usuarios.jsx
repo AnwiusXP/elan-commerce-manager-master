@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
-import { getUsers, createUser, deleteUser } from '../services/userService'
+import { getUsers, createUser, deleteUser, updateUserStatus } from '../services/userService'
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
@@ -48,6 +48,17 @@ function Usuarios() {
       fetchUsers()
     } catch (error) {
       setMensaje({ text: error.response?.data?.detail || 'Error al eliminar', type: 'error' })
+    }
+  }
+
+  async function toggleUserStatus(user) {
+    const newStatus = !user.is_active
+    try {
+      await updateUserStatus(user.id, newStatus)
+      setUsuarios(usuarios.map(u => u.id === user.id ? { ...u, is_active: newStatus } : u))
+      setMensaje({ text: newStatus ? 'Usuario activado' : 'Usuario desactivado', type: 'success' })
+    } catch (error) {
+      setMensaje({ text: error.response?.data?.detail || 'Error al actualizar estado', type: 'error' })
     }
   }
 
@@ -121,16 +132,40 @@ function Usuarios() {
                   <td style={{ ...tdStyle, fontWeight: '600', color: '#e6edf3' }}>{u.username}</td>
                   <td style={tdStyle}>{u.email}</td>
                   <td style={tdStyle}>
-                    <span style={{
-                      padding: '3px 10px',
-                      borderRadius: '12px',
-                      fontSize: '0.78rem',
-                      fontWeight: '600',
-                      background: u.is_active ? 'rgba(46,160,67,0.15)' : 'rgba(248,81,73,0.15)',
-                      color: u.is_active ? '#3fb950' : '#f85149'
-                    }}>
-                      {u.is_active ? 'Activo' : 'Pendiente'}
-                    </span>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <div style={{
+                        position: 'relative',
+                        width: '42px',
+                        height: '22px',
+                        background: u.is_active ? '#1e8a5e' : '#30363d',
+                        borderRadius: '11px',
+                        transition: 'background 0.2s ease'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={u.is_active}
+                          onChange={() => toggleUserStatus(u)}
+                          style={{ display: 'none' }}
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: u.is_active ? '22px' : '2px',
+                          width: '18px',
+                          height: '18px',
+                          background: '#fff',
+                          borderRadius: '50%',
+                          transition: 'left 0.2s ease'
+                        }} />
+                      </div>
+                      <span style={{
+                        marginLeft: '10px',
+                        fontSize: '0.8rem',
+                        color: u.is_active ? '#3fb950' : '#f85149'
+                      }}>
+                        {u.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </label>
                   </td>
                   <td style={tdStyle}>
                     <button 
