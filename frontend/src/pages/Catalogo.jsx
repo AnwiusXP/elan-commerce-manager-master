@@ -32,8 +32,8 @@ function Catalogo() {
   }
 
   const filtrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-    p.categoria.toLowerCase().includes(busqueda.toLowerCase())
+    (p?.nombre || "").toLowerCase().includes((busqueda || "").toLowerCase()) || 
+    (p?.categoria || "").toLowerCase().includes((busqueda || "").toLowerCase())
   )
 
   const totalCarrito = carrito.reduce((a, it) => a + it.cantidad, 0)
