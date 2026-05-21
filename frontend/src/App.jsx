@@ -8,6 +8,7 @@ import Reportes from './pages/Reportes'
 import Catalogo from './pages/Catalogo'
 import Carrito from './pages/Carrito'
 import Checkout from './pages/Checkout'
+import Rastreo from './pages/Rastreo'
 import PrivateRoute from './components/PrivateRoute'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
@@ -23,6 +24,7 @@ function App() {
         <Route path="/" element={<Catalogo />} />
         <Route path="/carrito" element={<Carrito />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/rastreo" element={<Rastreo />} />
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar-password" element={<ForgotPassword />} />
         <Route path="/restablecer-password" element={<ResetPassword />} />

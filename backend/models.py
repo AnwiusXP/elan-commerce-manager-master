@@ -85,3 +85,38 @@ class MovimientoInventario(Base):
     fecha = Column(DateTime, default=func.now())
 
     producto = relationship("Producto", back_populates="movimientos")
+
+class Pedido(Base):
+    __tablename__ = "pedidos"
+    __table_args__ = (
+        Index('ix_pedidos_estado', 'estado'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    guia_rastreo = Column(String, unique=True, index=True, nullable=False)
+    cliente_nombre = Column(String, nullable=False)
+    cliente_telefono = Column(String, nullable=False)
+    cliente_direccion = Column(String, nullable=False)
+    cliente_ciudad = Column(String, nullable=False)
+    cliente_email = Column(String, nullable=True)
+    nequi_celular = Column(String, nullable=False)
+    total = Column(Float, nullable=False)
+    estado = Column(String, default="PENDIENTE_NEQUI")  # PENDIENTE_NEQUI | APROBADO | DESPACHADO | ENTREGADO | CANCELADO
+    fecha_creacion = Column(DateTime, default=func.now())
+    fecha_actualizacion = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    items = relationship("PedidoItem", back_populates="pedido", cascade="all, delete-orphan")
+
+class PedidoItem(Base):
+    __tablename__ = "pedido_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pedido_id = Column(Integer, ForeignKey("pedidos.id", ondelete="CASCADE"), nullable=False, index=True)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
+    nombre_producto = Column(String, nullable=False)
+    cantidad = Column(Integer, nullable=False)
+    precio_unitario = Column(Float, nullable=False)
+    subtotal = Column(Float, nullable=False)
+
+    pedido = relationship("Pedido", back_populates="items")
+    producto = relationship("Producto")
