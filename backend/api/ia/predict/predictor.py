@@ -4,6 +4,7 @@ import pandas as pd
 import google.genai as genai
 import json
 import os
+import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -11,9 +12,11 @@ load_dotenv(encoding="utf-8")
 
 router = APIRouter()
 
+CACHE_GEMINI = {}
+
 # Cliente de Gemini (Nuevo paquete google.genai)
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-1.5-flash"
 
 from fastapi import Depends
 import sys
@@ -133,17 +136,51 @@ async def predecir_demanda(
         Nuestro modelo XGBoost proyecta estas ventas para los próximos días: {predicciones_xgboost}. 
         Escribe una recomendación corta de máximo 3 líneas indicando si debemos comprar más stock o no.
         """
+
+        ahora = datetime.now()
+        texto_recomendacion = None
         
-        try:
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt_gemini
-            )
-            texto_recomendacion = response.text
-        except Exception as gemini_error:
-            # Degradación elegante con impresión en consola para que sepas qué falló
-            print(f"❌ Error de Gemini: {gemini_error}")
-            texto_recomendacion = "Recomendación IA no disponible temporalmente. Basado en la gráfica, evalúe la tendencia."
+        if nombre_producto in CACHE_GEMINI:
+            cache_entry = CACHE_GEMINI[nombre_producto]
+            tiempo_transcurrido = ahora - cache_entry["timestamp"]
+            expiracion = timedelta(minutes=5) if cache_entry.get("is_error") else timedelta(hours=12)
+            
+            if tiempo_transcurrido < expiracion:
+                texto_recomendacion = cache_entry["recomendacion"]
+                print(f"✅ Usando caché para '{nombre_producto}'")
+
+        if not texto_recomendacion:
+            intentos = 0
+            max_intentos = 3
+            
+            while intentos < max_intentos:
+                try:
+                    response = client.models.generate_content(
+                        model=GEMINI_MODEL,
+                        contents=prompt_gemini
+                    )
+                    texto_recomendacion = response.text
+                    
+                    CACHE_GEMINI[nombre_producto] = {
+                        "recomendacion": texto_recomendacion,
+                        "timestamp": ahora,
+                        "is_error": False
+                    }
+                    break
+                except Exception as gemini_error:
+                    intentos += 1
+                    print(f"⚠️ Intento {intentos} fallido de Gemini para '{nombre_producto}': {gemini_error}")
+                    if intentos < max_intentos:
+                        time.sleep(2)
+                    else:
+                        print(f"❌ Error crítico tras {max_intentos} intentos. Activando degradación.")
+                        texto_recomendacion = "Recomendación IA no disponible temporalmente. Basado en la gráfica, evalúe la tendencia."
+                        
+                        CACHE_GEMINI[nombre_producto] = {
+                            "recomendacion": texto_recomendacion,
+                            "timestamp": ahora,
+                            "is_error": True
+                        }
 
         # Definimos el nivel de alerta
         nivel_alerta = "Alto" if cantidad_estimada_final > 70 else "Normal"
