@@ -1,20 +1,19 @@
 from fastapi import APIRouter, Query
 import xgboost as xgb
 import pandas as pd
-import google.generativeai as genai
+import google.genai as genai
 import json
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(encoding="utf-8")
 
 router = APIRouter()
 
-# Configuración de Gemini (Asegúrate de tener tu .env cargado)
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-# Usamos gemini-1.5-flash porque gemini-pro ya está siendo deprecado por Google
-model = genai.GenerativeModel('gemini-2.5-flash')
+# Cliente de Gemini (Nuevo paquete google.genai)
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+GEMINI_MODEL = "gemini-2.0-flash"
 
 from fastapi import Depends
 import sys
@@ -136,8 +135,11 @@ async def predecir_demanda(
         """
         
         try:
-            respuesta_gemini = model.generate_content(prompt_gemini)
-            texto_recomendacion = respuesta_gemini.text
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt_gemini
+            )
+            texto_recomendacion = response.text
         except Exception as gemini_error:
             # Degradación elegante con impresión en consola para que sepas qué falló
             print(f"❌ Error de Gemini: {gemini_error}")

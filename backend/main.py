@@ -1,5 +1,5 @@
 # backend/main.py
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +23,8 @@ from models import (
     MovimientoInventario,
     PasswordResetToken,
     User,
+    Pedido,
+    PedidoItem,
 )
 from auth import (
     authenticate_user,
@@ -65,15 +67,29 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Crear tablas si no existen
 Base.metadata.create_all(bind=engine)
 
-# 2. Configuración de CORS Robusta
-# Permitimos tanto localhost como la IP loopback para evitar bloqueos en el navegador
-# También leemos FRONTEND_URL del entorno (Render proporciona su propia URL)
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-origins = [
+# 2. Configuración de CORS Dinámica (Local + Producción)
+# Orígenes locales explícitos para desarrollo
+LOCAL_ORIGINS = [
     "http://localhost:5173",
-    "https://elan-commerce-manager-master-1.onrender.com",
-    frontend_url,
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
 ]
+
+# Leer FRONTEND_URL desde variable de entorno (Render injecta esta variable)
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+
+# Construir lista de orígenes: locales + producción (si está configurada)
+origins = LOCAL_ORIGINS.copy()
+if FRONTEND_URL:
+    origins.append(FRONTEND_URL)
+
+# Fallback para producción de Render (URL hardcodeada como respaldo)
+PRODUCTION_ORIGIN = "https://elan-commerce-manager-master-1.onrender.com"
+if PRODUCTION_ORIGIN not in origins:
+    origins.append(PRODUCTION_ORIGIN)
+
+print(f" 🌐 CORS configurado para: {origins}")
 
 # 1. Configuración de CORS antes de montar rutas
 app.add_middleware(
@@ -155,6 +171,28 @@ class ReembolsoRequest(BaseModel):
     motivo: Optional[str] = None
 
 
+# --- ESQUEMAS DE PEDIDOS PÚBLICOS (Nequi Contra Entrega) ---
+
+
+class PedidoItemRequest(BaseModel):
+    producto_id: int
+    cantidad: int
+
+
+class CrearPedidoRequest(BaseModel):
+    cliente_nombre: str
+    cliente_telefono: str
+    cliente_direccion: str
+    cliente_ciudad: str
+    cliente_email: Optional[str] = None
+    nequi_celular: str
+    items: List[PedidoItemRequest]
+
+
+class ActualizarEstadoPedidoRequest(BaseModel):
+    nuevo_estado: str  # DESPACHADO | ENTREGADO | CANCELADO
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -184,6 +222,10 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
 
 
 # --- ENDPOINTS ---
@@ -229,12 +271,7 @@ async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_
 
     user = db.query(User).filter(User.email == req.email).first()
     if not user:
-        # Por seguridad no indicamos si el email existe o no
-        print(f"[AUTH] Email {req.email} no encontrado en BD (respuesta genérica)")
-        return {
-            "status": "success",
-            "message": "Si el correo está registrado, se ha enviado un código de recuperación.",
-        }
+        raise HTTPException(status_code=404, detail="Email no encontrado.")
 
     # Generar código numérico de 6 dígitos
     code = "".join(random.choices(string.digits, k=6))
@@ -749,7 +786,11 @@ async def list_users(
 
 
 @app.post("/api/users", response_model=UserResponse)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+async def create_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
+):
     # Validar que username sea alfanumerico
     import re
 
@@ -794,7 +835,10 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
     base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     activation_url = f"{base_url}/activate/{token}"
-    await send_activation_email(user.email, activation_url)
+    if background_tasks:
+        background_tasks.add_task(send_activation_email, user.email, activation_url)
+    else:
+        await send_activation_email(user.email, activation_url)
 
     return new_user
 
@@ -817,6 +861,30 @@ async def delete_user(
     db.delete(user)
     db.commit()
     return {"status": "success", "message": "Usuario eliminado correctamente."}
+
+
+@app.put("/api/users/{user_id}/status")
+async def update_user_status(
+    user_id: int,
+    status_update: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Actualiza el estado is_active de un usuario (toggle)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    user.is_active = status_update.is_active
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_active": user.is_active,
+    }
 
 
 # ========================================================================
@@ -1272,6 +1340,373 @@ async def inventario_alertas(
         )
 
     return resultado
+
+
+# ========================================================================
+# MÓDULO 4: PEDIDOS PÚBLICOS — Nequi Contra Entrega
+# ========================================================================
+
+
+# Número Nequi de la propietaria (configurable)
+NEQUI_DUENA = os.getenv("NEQUI_DUENA", "3123456789")
+NEQUI_PROPIETARIA = os.getenv("NEQUI_PROPIETARIA", "Élan Pure")
+
+
+def _generar_guia() -> str:
+    """Genera un código de guía único con formato ELAN-XXXXXX."""
+    import secrets
+    codigo = secrets.token_hex(3).upper()  # 6 caracteres hex
+    return f"ELAN-{codigo}"
+
+
+@app.post("/api/pedidos", status_code=201)
+async def crear_pedido(req: CrearPedidoRequest, db: Session = Depends(get_db)):
+    """
+    Crea un pedido público de Nequi Contra Entrega.
+    NO descuenta stock (eso ocurre al aprobar).
+    Genera un número de guía único para rastreo.
+    """
+    if not req.items:
+        raise HTTPException(status_code=400, detail="El carrito está vacío.")
+
+    # Validar número Nequi del comprador
+    import re
+    if not re.match(r"^3[0-9]{9}$", req.nequi_celular):
+        raise HTTPException(
+            status_code=400,
+            detail="Número Nequi inválido. Debe ser 10 dígitos comenzando por 3."
+        )
+
+    # Validar productos y calcular total (sin descontar stock)
+    total_pedido = 0.0
+    items_validados = []
+
+    for item in req.items:
+        producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+        if not producto:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Producto con ID {item.producto_id} no encontrado."
+            )
+        if producto.stock < item.cantidad:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Stock insuficiente para '{producto.nombre}'. Disponible: {producto.stock}, Solicitado: {item.cantidad}"
+            )
+        precio_real = producto.precio
+        subtotal = precio_real * item.cantidad
+        total_pedido += subtotal
+        items_validados.append({
+            "producto_id": item.producto_id,
+            "nombre_producto": producto.nombre,
+            "cantidad": item.cantidad,
+            "precio_unitario": precio_real,
+            "subtotal": subtotal,
+        })
+
+    # Generar guía única
+    guia = _generar_guia()
+    # Asegurar unicidad
+    while db.query(Pedido).filter(Pedido.guia_rastreo == guia).first():
+        guia = _generar_guia()
+
+    try:
+        nuevo_pedido = Pedido(
+            guia_rastreo=guia,
+            cliente_nombre=req.cliente_nombre,
+            cliente_telefono=req.cliente_telefono,
+            cliente_direccion=req.cliente_direccion,
+            cliente_ciudad=req.cliente_ciudad,
+            cliente_email=req.cliente_email,
+            nequi_celular=req.nequi_celular,
+            total=total_pedido,
+            estado="PENDIENTE_NEQUI",
+        )
+        db.add(nuevo_pedido)
+        db.flush()
+
+        for item_data in items_validados:
+            detalle = PedidoItem(
+                pedido_id=nuevo_pedido.id,
+                producto_id=item_data["producto_id"],
+                nombre_producto=item_data["nombre_producto"],
+                cantidad=item_data["cantidad"],
+                precio_unitario=item_data["precio_unitario"],
+                subtotal=item_data["subtotal"],
+            )
+            db.add(detalle)
+
+        db.commit()
+        db.refresh(nuevo_pedido)
+
+        return {
+            "status": "success",
+            "guia_rastreo": guia,
+            "total": total_pedido,
+            "nequi_duena": NEQUI_DUENA,
+            "propietario_nequi": NEQUI_PROPIETARIA,
+            "mensaje": f"Pedido registrado exitosamente. Transfiere ${total_pedido:,.0f} al Nequi {NEQUI_DUENA} para confirmar tu pedido.",
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Error interno al crear el pedido: {str(e)}"
+        )
+
+
+@app.get("/api/pedidos/rastreo/{guia}")
+async def rastrear_pedido(guia: str, db: Session = Depends(get_db)):
+    """
+    Consulta pública del estado de un pedido por número de guía.
+    Oculta datos sensibles (dirección exacta, email completo).
+    """
+    pedido = db.query(Pedido).filter(Pedido.guia_rastreo == guia.upper().strip()).first()
+    if not pedido:
+        raise HTTPException(
+            status_code=404,
+            detail="No se encontró ningún pedido con esa guía. Verifica el número e intenta de nuevo."
+        )
+
+    # Obtener items del pedido
+    items = db.query(PedidoItem).filter(PedidoItem.pedido_id == pedido.id).all()
+
+    return {
+        "guia_rastreo": pedido.guia_rastreo,
+        "estado": pedido.estado,
+        "total": pedido.total,
+        "ciudad": pedido.cliente_ciudad,
+        "cliente_nombre": pedido.cliente_nombre,
+        "fecha_creacion": pedido.fecha_creacion.isoformat() if pedido.fecha_creacion else None,
+        "fecha_actualizacion": pedido.fecha_actualizacion.isoformat() if pedido.fecha_actualizacion else None,
+        "items": [
+            {
+                "nombre_producto": it.nombre_producto,
+                "cantidad": it.cantidad,
+                "precio_unitario": it.precio_unitario,
+                "subtotal": it.subtotal,
+            }
+            for it in items
+        ],
+    }
+
+
+# --- ADMINISTRACIÓN DE PEDIDOS (requiere autenticación) ---
+
+
+@app.get("/api/admin/pedidos")
+async def listar_pedidos(
+    estado: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Lista todos los pedidos con filtro opcional por estado."""
+    query = db.query(Pedido)
+    if estado:
+        query = query.filter(Pedido.estado == estado.upper())
+    pedidos = query.order_by(Pedido.fecha_creacion.desc()).all()
+
+    resultado = []
+    for p in pedidos:
+        items = db.query(PedidoItem).filter(PedidoItem.pedido_id == p.id).all()
+        resultado.append({
+            "id": p.id,
+            "guia_rastreo": p.guia_rastreo,
+            "cliente_nombre": p.cliente_nombre,
+            "cliente_telefono": p.cliente_telefono,
+            "cliente_direccion": p.cliente_direccion,
+            "cliente_ciudad": p.cliente_ciudad,
+            "cliente_email": p.cliente_email,
+            "nequi_celular": p.nequi_celular,
+            "total": p.total,
+            "estado": p.estado,
+            "fecha_creacion": p.fecha_creacion.isoformat() if p.fecha_creacion else None,
+            "fecha_actualizacion": p.fecha_actualizacion.isoformat() if p.fecha_actualizacion else None,
+            "items": [
+                {
+                    "producto_id": it.producto_id,
+                    "nombre_producto": it.nombre_producto,
+                    "cantidad": it.cantidad,
+                    "precio_unitario": it.precio_unitario,
+                    "subtotal": it.subtotal,
+                }
+                for it in items
+            ],
+        })
+    return resultado
+
+
+@app.post("/api/admin/pedidos/{pedido_id}/aprobar")
+async def aprobar_pedido(
+    pedido_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Aprueba un pedido PENDIENTE_NEQUI:
+    1. Verifica estado PENDIENTE_NEQUI
+    2. Descuenta stock de cada producto
+    3. Crea registro en tabla 'ventas' (para analíticas)
+    4. Registra VentaItems y MovimientosInventario
+    5. Cambia estado del pedido a APROBADO
+    """
+    pedido = db.query(Pedido).filter(Pedido.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+    if pedido.estado != "PENDIENTE_NEQUI":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se pueden aprobar pedidos en estado PENDIENTE_NEQUI. Estado actual: {pedido.estado}"
+        )
+
+    items_pedido = db.query(PedidoItem).filter(PedidoItem.pedido_id == pedido.id).all()
+
+    try:
+        # Validar y descontar stock
+        items_para_venta = []
+        for item in items_pedido:
+            producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+            if not producto:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Producto ID {item.producto_id} ('{item.nombre_producto}') ya no existe en el sistema."
+                )
+            if producto.stock < item.cantidad:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Stock insuficiente para '{producto.nombre}'. Disponible: {producto.stock}, Requerido: {item.cantidad}"
+                )
+            producto.stock -= item.cantidad
+            items_para_venta.append({
+                "producto_id": item.producto_id,
+                "nombre_producto": item.nombre_producto,
+                "cantidad": item.cantidad,
+                "precio": item.precio_unitario,
+            })
+
+        # Crear registro de Venta (para analíticas y dashboard)
+        nueva_venta = Venta(
+            items=json.dumps(items_para_venta),
+            total=pedido.total,
+            metodo_pago="NEQUI_CONTRA_ENTREGA",
+            estado="APROBADA",
+            referencia_pago=pedido.guia_rastreo,
+        )
+        db.add(nueva_venta)
+        db.flush()
+
+        # Registrar VentaItems y movimientos de inventario
+        for item in items_pedido:
+            producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+
+            detalle_venta = VentaItem(
+                venta_id=nueva_venta.id,
+                producto_id=item.producto_id,
+                nombre_producto=item.nombre_producto,
+                cantidad=item.cantidad,
+                precio_unitario=item.precio_unitario,
+                subtotal=item.subtotal,
+            )
+            db.add(detalle_venta)
+
+            movimiento = MovimientoInventario(
+                producto_id=item.producto_id,
+                tipo="VENTA",
+                cantidad=-item.cantidad,
+                stock_resultante=producto.stock,
+                referencia_id=nueva_venta.id,
+                nota=f"Pedido #{pedido.guia_rastreo} aprobado",
+            )
+            db.add(movimiento)
+
+        # Cambiar estado del pedido
+        pedido.estado = "APROBADO"
+        db.commit()
+
+        return {
+            "status": "success",
+            "mensaje": f"Pedido {pedido.guia_rastreo} aprobado. Venta #{nueva_venta.id} generada.",
+            "venta_id": nueva_venta.id,
+            "guia_rastreo": pedido.guia_rastreo,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Error interno al aprobar pedido: {str(e)}"
+        )
+
+
+@app.put("/api/admin/pedidos/{pedido_id}/estado")
+async def actualizar_estado_pedido(
+    pedido_id: int,
+    req: ActualizarEstadoPedidoRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Actualiza el estado de un pedido (DESPACHADO, ENTREGADO, CANCELADO).
+    Si se cancela desde APROBADO, restaura el stock y registra movimiento correctivo.
+    """
+    pedido = db.query(Pedido).filter(Pedido.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+
+    nuevo_estado = req.nuevo_estado.upper()
+    estados_validos = ["DESPACHADO", "ENTREGADO", "CANCELADO"]
+    if nuevo_estado not in estados_validos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Estado inválido. Estados permitidos: {', '.join(estados_validos)}"
+        )
+
+    # Reglas de transición
+    estado_actual = pedido.estado
+    transiciones_validas = {
+        "PENDIENTE_NEQUI": ["CANCELADO"],
+        "APROBADO": ["DESPACHADO", "CANCELADO"],
+        "DESPACHADO": ["ENTREGADO", "CANCELADO"],
+    }
+    permitidos = transiciones_validas.get(estado_actual, [])
+    if nuevo_estado not in permitidos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede cambiar de '{estado_actual}' a '{nuevo_estado}'. Transiciones permitidas: {', '.join(permitidos) if permitidos else 'ninguna'}"
+        )
+
+    try:
+        # Si se cancela desde APROBADO, restaurar stock
+        if nuevo_estado == "CANCELADO" and estado_actual == "APROBADO":
+            items_pedido = db.query(PedidoItem).filter(PedidoItem.pedido_id == pedido.id).all()
+            for item in items_pedido:
+                producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+                if producto:
+                    producto.stock += item.cantidad
+                    movimiento = MovimientoInventario(
+                        producto_id=item.producto_id,
+                        tipo="DEVOLUCION",
+                        cantidad=item.cantidad,
+                        stock_resultante=producto.stock,
+                        referencia_id=pedido.id,
+                        nota=f"Cancelación pedido #{pedido.guia_rastreo}",
+                    )
+                    db.add(movimiento)
+
+        pedido.estado = nuevo_estado
+        db.commit()
+
+        return {
+            "status": "success",
+            "guia_rastreo": pedido.guia_rastreo,
+            "estado_anterior": estado_actual,
+            "estado_nuevo": nuevo_estado,
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Error al actualizar estado: {str(e)}"
+        )
 
 
 # 4. Optimización de Arranque (Solución a SpawnProcess/Python 3.14)

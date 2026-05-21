@@ -21,8 +21,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ecm_backend_ia
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://user_elan:password_elan@db:5432/elan_db
     env_file:
@@ -41,8 +41,10 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: ecm_frontend
-    expose:
-      - "5173"
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend-ia
     volumes:

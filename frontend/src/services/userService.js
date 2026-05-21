@@ -14,3 +14,8 @@ export const deleteUser = async (userId) => {
   const res = await api.delete(`/api/users/${userId}`)
   return res.data
 }
+
+export const updateUserStatus = async (userId, isActive) => {
+  const res = await api.put(`/api/users/${userId}/status`, { is_active: isActive })
+  return res.data
+}

@@ -32,8 +32,8 @@ function Catalogo() {
   }
 
   const filtrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-    p.categoria.toLowerCase().includes(busqueda.toLowerCase())
+    (p?.nombre || "").toLowerCase().includes((busqueda || "").toLowerCase()) || 
+    (p?.categoria || "").toLowerCase().includes((busqueda || "").toLowerCase())
   )
 
   const totalCarrito = carrito.reduce((a, it) => a + it.cantidad, 0)
@@ -79,9 +79,10 @@ function Catalogo() {
         justifyContent: 'space-between', padding: '14px 32px',
         position: 'sticky', top: 0, zIndex: 100
       }}>
-        <div style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.2rem', letterSpacing: '1px' }}>
-          Élan Pure
-        </div>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <img src="/images/logo.png" alt="Élan Pure" style={{ height: '36px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+          <span style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.2rem', letterSpacing: '1px', display: 'none' }}>Élan Pure</span>
+        </Link>
         <input
           type="text"
           placeholder="🔍 Buscar por nombre o categoría..."
@@ -100,6 +101,13 @@ function Catalogo() {
           }}>
             🛒 Carrito ({totalCarrito})
           </Link>
+          <Link to="/rastreo" style={{
+            color: '#8b949e', textDecoration: 'none', fontSize: '0.85rem',
+            border: '1px solid #30363d', borderRadius: '20px', padding: '7px 16px',
+            transition: 'all 0.2s'
+          }}>
+            📦 Rastrear Pedido
+          </Link>
           <Link to="/login" style={{
             color: '#8b949e', textDecoration: 'none', fontSize: '0.85rem',
             border: '1px solid #30363d', borderRadius: '20px', padding: '7px 16px',
@@ -117,10 +125,10 @@ function Catalogo() {
         borderBottom: '1px solid #30363d'
       }}>
         <h2 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '12px', letterSpacing: '-0.5px' }}>
-          Eleva tu rutina de cuidado
+          Hogares limpios, aromas puros
         </h2>
         <p style={{ color: '#8b949e', marginBottom: '32px', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto 32px' }}>
-          Descubre nuestra línea exclusiva de productos premium. Formulados para resaltar tu belleza natural.
+          Línea premium de jabones lavavajillas, detergentes biodegradables y aromatizantes ambientales de alta concentración. Cuidado excepcional para tu hogar.
         </p>
         <a href="#productos" style={{
           background: '#e6edf3', color: '#0d1117', borderRadius: '30px',
@@ -261,7 +269,7 @@ function Catalogo() {
               </div>
               
               <p style={{ color: '#6c757d', fontSize: '1rem', lineHeight: '1.6', marginBottom: '32px', flex: '1' }}>
-                Un producto premium de nuestra línea {previewItem.categoria}. Ideal para el uso diario y formulado con ingredientes de la más alta calidad para garantizar resultados excepcionales.
+                Producto premium de nuestra línea {previewItem.categoria} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
               </p>
               
               <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
