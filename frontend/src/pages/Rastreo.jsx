@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { rastrearPedido } from '../services/pedidoService'
+import NavbarPublico from '../components/NavbarPublico'
+import { Clock, CheckCircle2, Truck, PackageCheck } from 'lucide-react'
 
 const ESTADOS_TIMELINE = [
-  { key: 'PENDIENTE_NEQUI', label: 'Pendiente de Pago', icon: '🟡', desc: 'Esperando transferencia Nequi' },
-  { key: 'APROBADO', label: 'Pago Verificado', icon: '🟢', desc: 'Pago confirmado — Alistando pedido' },
-  { key: 'DESPACHADO', label: 'En Camino', icon: '🔵', desc: 'Tu pedido va en camino a tu hogar' },
-  { key: 'ENTREGADO', label: 'Entregado', icon: '🏁', desc: 'Entregado con éxito' },
+  { key: 'PENDIENTE_NEQUI', label: 'Pendiente de Pago', icon: Clock, desc: 'Esperando transferencia Nequi' },
+  { key: 'APROBADO', label: 'Pago Verificado', icon: CheckCircle2, desc: 'Pago confirmado — Alistando pedido' },
+  { key: 'DESPACHADO', label: 'En Camino', icon: Truck, desc: 'Tu pedido va en camino a tu hogar' },
+  { key: 'ENTREGADO', label: 'Entregado', icon: PackageCheck, desc: 'Entregado con éxito' },
 ]
 
 function Rastreo() {
@@ -54,17 +56,9 @@ function Rastreo() {
   const estadoActualIdx = pedido ? getEstadoIndex(pedido.estado) : -1
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
-      {/* Navbar */}
-      <div style={{
-        background: '#0d1117', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '14px 32px'
-      }}>
-        <Link to="/" style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.1rem', textDecoration: 'none' }}>
-          ← Élan Pure
-        </Link>
-        <span style={{ color: '#8b949e', fontSize: '0.9rem' }}>📦 Rastreo de Pedido</span>
-      </div>
+    <div className="theme-public-clean">
+      
+      <NavbarPublico totalCarrito={0} showSearch={false} />
 
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '48px 20px' }}>
         {/* Search Box */}
@@ -160,12 +154,11 @@ function Rastreo() {
 
                     return (
                       <div key={step.key} style={{ display: 'flex', gap: '16px', position: 'relative' }}>
-                        {/* Vertical Line */}
                         {i < ESTADOS_TIMELINE.length - 1 && (
                           <div style={{
                             position: 'absolute', left: '15px', top: '36px',
                             width: '2px', height: 'calc(100% - 4px)',
-                            background: isCompleted ? '#2dd48b' : '#e5e7eb',
+                            background: isCompleted ? 'var(--color-brand-primary)' : 'var(--color-border)',
                             transition: 'background 0.5s'
                           }} />
                         )}
@@ -173,15 +166,15 @@ function Rastreo() {
                         <div style={{
                           width: '32px', height: '32px', minWidth: '32px',
                           borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '1rem', zIndex: 1,
-                          background: isCompleted ? '#2dd48b' : isActive ? '#0d1117' : '#f3f4f6',
-                          color: isCompleted || isActive ? '#fff' : '#9ca3af',
-                          border: isActive ? '3px solid #2dd48b' : isPending ? '2px solid #d1d5db' : 'none',
+                          zIndex: 1,
+                          background: isCompleted ? 'var(--color-brand-primary)' : isActive ? 'var(--color-brand-secondary)' : '#f8fafc',
+                          color: isCompleted || isActive ? '#fff' : 'var(--color-text-muted)',
+                          border: isActive ? '3px solid var(--color-brand-secondary)' : isPending ? '2px solid var(--color-border)' : 'none',
                           transition: 'all 0.5s',
-                          boxShadow: isActive ? '0 0 0 4px rgba(45, 212, 139, 0.2)' : 'none',
+                          boxShadow: isActive ? '0 0 0 4px rgba(17, 104, 179, 0.2)' : 'none',
                           animation: isActive ? 'pulse 2s infinite' : 'none'
                         }}>
-                          {isCompleted ? '✓' : step.icon}
+                          {isCompleted ? <CheckCircle2 size={18} /> : <step.icon size={18} />}
                         </div>
                         {/* Text */}
                         <div style={{ paddingBottom: '28px' }}>

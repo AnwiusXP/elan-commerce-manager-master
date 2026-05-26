@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import NavbarPublico from '../components/NavbarPublico'
 
 function Carrito() {
   const [carrito, setCarrito] = useState([])
@@ -24,14 +25,9 @@ function Carrito() {
   }
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
+    <div className="theme-public-clean">
 
-      {/* Navbar */}
-      <div style={{ background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 32px' }}>
-        <Link to="/" style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.1rem', textDecoration: 'none' }}>
-          ← Élan Pure
-        </Link>
-      </div>
+      <NavbarPublico totalCarrito={carrito.length > 0 ? carrito.reduce((a, it) => a + it.cantidad, 0) : 0} showSearch={false} />
 
       <div style={{ padding: '40px 32px' }}>
         <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0d1117', marginBottom: '28px' }}>

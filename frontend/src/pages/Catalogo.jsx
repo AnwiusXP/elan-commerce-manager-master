@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
+import NavbarPublico from '../components/NavbarPublico'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
@@ -71,70 +72,30 @@ function Catalogo() {
   }
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
+    <div className="theme-public-clean">
       
-      {/* Navbar */}
-      <div style={{
-        background: '#0d1117', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '14px 32px',
-        position: 'sticky', top: 0, zIndex: 100
-      }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-          <img src="/images/logo.png" alt="Élan Pure" style={{ height: '36px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
-          <span style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.2rem', letterSpacing: '1px', display: 'none' }}>Élan Pure</span>
-        </Link>
-        <input
-          type="text"
-          placeholder="🔍 Buscar por nombre o categoría..."
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
-          style={{
-            background: '#161b22', border: '1px solid #30363d', color: '#e6edf3',
-            borderRadius: '20px', padding: '8px 18px', fontSize: '0.9rem', width: '300px', outline: 'none'
-          }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Link to="/carrito" style={{
-            color: '#1e8a5e', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '600',
-            background: 'rgba(30, 138, 94, 0.1)', border: '1px solid #1e8a5e',
-            borderRadius: '20px', padding: '7px 16px', transition: 'all 0.2s'
-          }}>
-            🛒 Carrito ({totalCarrito})
-          </Link>
-          <Link to="/rastreo" style={{
-            color: '#8b949e', textDecoration: 'none', fontSize: '0.85rem',
-            border: '1px solid #30363d', borderRadius: '20px', padding: '7px 16px',
-            transition: 'all 0.2s'
-          }}>
-            📦 Rastrear Pedido
-          </Link>
-          <Link to="/login" style={{
-            color: '#8b949e', textDecoration: 'none', fontSize: '0.85rem',
-            border: '1px solid #30363d', borderRadius: '20px', padding: '7px 16px',
-            transition: 'all 0.2s'
-          }}>
-            🔐 Admin
-          </Link>
-        </div>
-      </div>
+      <NavbarPublico totalCarrito={totalCarrito} busqueda={busqueda} setBusqueda={setBusqueda} showSearch={true} />
 
       {/* Hero */}
       <div style={{ 
-        background: 'linear-gradient(135deg, #0d1117 0%, #161b22 100%)', 
-        color: '#e6edf3', textAlign: 'center', padding: '70px 32px',
-        borderBottom: '1px solid #30363d'
+        background: 'linear-gradient(135deg, #f0fdf4 0%, #ecf5ff 100%)', 
+        color: 'var(--color-text-main)', textAlign: 'center', padding: '70px 32px',
+        borderBottom: '1px solid var(--color-border)'
       }}>
-        <h2 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '12px', letterSpacing: '-0.5px' }}>
+        <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '12px', letterSpacing: '-0.5px' }}>
           Hogares limpios, aromas puros
         </h2>
-        <p style={{ color: '#8b949e', marginBottom: '32px', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto 32px' }}>
+        <p style={{ color: 'var(--color-text-muted)', marginBottom: '32px', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto 32px' }}>
           Línea premium de jabones lavavajillas, detergentes biodegradables y aromatizantes ambientales de alta concentración. Cuidado excepcional para tu hogar.
         </p>
         <a href="#productos" style={{
-          background: '#e6edf3', color: '#0d1117', borderRadius: '30px',
-          padding: '12px 32px', fontWeight: '600', textDecoration: 'none',
-          display: 'inline-block', transition: 'transform 0.2s'
-        }}>
+          background: 'var(--color-brand-primary)', color: '#fff', borderRadius: '30px',
+          padding: '14px 36px', fontWeight: '600', textDecoration: 'none',
+          display: 'inline-block', transition: 'all 0.2s', boxShadow: 'var(--shadow-md)'
+        }}
+        onMouseEnter={(e) => { e.target.style.background = 'var(--color-brand-primary-hover)'; e.target.style.transform = 'translateY(-2px)' }}
+        onMouseLeave={(e) => { e.target.style.background = 'var(--color-brand-primary)'; e.target.style.transform = 'translateY(0)' }}
+        >
           Explorar Catálogo
         </a>
       </div>
