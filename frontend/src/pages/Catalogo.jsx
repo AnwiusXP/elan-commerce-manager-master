@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
 import NavbarPublico from '../components/NavbarPublico'
+import ProductImage from '../components/ProductImage'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
@@ -65,12 +66,6 @@ function Catalogo() {
     }
   }
 
-  // Lógica de Imagen Segura (Fallback al placeholder)
-  const handleImageError = (e) => {
-    e.target.onerror = null; // Prevent infinite loop if fallback also fails
-    e.target.src = '/placeholder.png'
-  }
-
   return (
     <div className="theme-public-clean">
       
@@ -128,11 +123,10 @@ function Catalogo() {
               >
                 {/* Image Section */}
                 <div style={{ background: '#f1f3f5', height: '260px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img 
-                    src={`/images/products/${p.id}.jpg`} 
+                  <ProductImage 
+                    id={p.id} 
                     alt={p.nombre}
-                    onError={handleImageError}
-                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'cover' }}
+                    style={{ maxHeight: '100%', objectFit: 'cover', borderRadius: '0' }}
                   />
                   {p.stock <= 5 && (
                     <div style={{
@@ -199,11 +193,10 @@ function Catalogo() {
           >
             {/* Left side: Image */}
             <div style={{ flex: '1', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-              <img 
-                src={`/images/products/${previewItem.id}.jpg`} 
+              <ProductImage 
+                id={previewItem.id} 
                 alt={previewItem.nombre}
-                onError={handleImageError}
-                style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))' }}
+                style={{ maxHeight: '400px', objectFit: 'contain', filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.1))' }}
               />
             </div>
             

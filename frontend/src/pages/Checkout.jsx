@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { crearPedido } from '../services/pedidoService'
 import NavbarPublico from '../components/NavbarPublico'
+import ProductImage from '../components/ProductImage'
 
 function Checkout() {
   const [carrito, setCarrito] = useState([])
@@ -267,9 +268,18 @@ function Checkout() {
           <div style={{ background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px', padding: '28px', position: 'sticky', top: '20px' }}>
             <h3 style={{ fontWeight: '700', color: '#0d1117', marginBottom: '20px', fontSize: '1rem' }}>Resumen del pedido</h3>
             {carrito.map((it, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem', color: '#4b5563' }}>
-                <span>{it.nombre} <span style={{ color: '#9ca3af' }}>x{it.cantidad}</span></span>
-                <span style={{ fontWeight: '600' }}>${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ width: '40px', height: '40px', background: '#f8f9fa', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
+                  <ProductImage 
+                    id={it.id || it.producto_id} 
+                    alt={it.nombre} 
+                    style={{ width: '100%', height: '100%', borderRadius: '0' }}
+                  />
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: '#4b5563' }}>
+                  <span>{it.nombre} <span style={{ color: '#9ca3af' }}>x{it.cantidad}</span></span>
+                  <span style={{ fontWeight: '600' }}>${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
+                </div>
               </div>
             ))}
             <div style={{
@@ -307,3 +317,4 @@ const formInput = { width: '100%', padding: '11px 14px', borderRadius: '8px', bo
 const formHint = { display: 'block', color: '#9ca3af', fontSize: '0.78rem', marginTop: '4px' }
 
 export default Checkout
+

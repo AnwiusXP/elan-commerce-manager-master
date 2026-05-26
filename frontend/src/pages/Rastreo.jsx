@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { rastrearPedido } from '../services/pedidoService'
 import NavbarPublico from '../components/NavbarPublico'
+import ProductImage from '../components/ProductImage'
 import { Clock, CheckCircle2, Truck, PackageCheck } from 'lucide-react'
 
 const ESTADOS_TIMELINE = [
@@ -212,12 +213,21 @@ function Rastreo() {
               <h3 style={{ fontWeight: '700', color: '#0d1117', marginBottom: '20px', fontSize: '1rem' }}>Detalle del Pedido</h3>
               {pedido.items?.map((it, i) => (
                 <div key={i} style={{
-                  display: 'flex', justifyContent: 'space-between',
+                  display: 'flex', alignItems: 'center', gap: '12px',
                   marginBottom: '10px', fontSize: '0.9rem', color: '#4b5563',
                   padding: '8px 0', borderBottom: i < pedido.items.length - 1 ? '1px solid #f3f4f6' : 'none'
                 }}>
-                  <span>{it.nombre_producto} <span style={{ color: '#9ca3af' }}>x{it.cantidad}</span></span>
-                  <span style={{ fontWeight: '600' }}>${it.subtotal?.toLocaleString('es-CO')}</span>
+                  <div style={{ width: '45px', height: '45px', background: '#f8f9fa', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
+                    <ProductImage 
+                      id={it.producto_id} 
+                      alt={it.nombre_producto} 
+                      style={{ width: '100%', height: '100%', borderRadius: '0' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{it.nombre_producto} <span style={{ color: '#9ca3af' }}>x{it.cantidad}</span></span>
+                    <span style={{ fontWeight: '600' }}>${it.subtotal?.toLocaleString('es-CO')}</span>
+                  </div>
                 </div>
               ))}
               <div style={{
