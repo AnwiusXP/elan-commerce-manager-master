@@ -2,8 +2,10 @@ from fastapi import APIRouter, Query
 import xgboost as xgb
 import pandas as pd
 import google.genai as genai
+import google.api_core.exceptions as google_exceptions
 import json
 import os
+from time import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -13,7 +15,11 @@ router = APIRouter()
 
 # Cliente de Gemini (Nuevo paquete google.genai)
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+
+# Caché en memoria con TTL de 12 horas
+CACHE_TTL = 12 * 3600
+cache = {}
 
 from fastapi import Depends
 import sys
@@ -126,22 +132,44 @@ async def predecir_demanda(
         data_grafica = cantidades_historicas + predicciones_xgboost
 
         # ---------------------------------------------------------
-        # 5. API DE GEMINI (Recomendación Estratégica)
+        # 5. CACHÉ EN MEMORIA (TTL 12 HORAS)
         # ---------------------------------------------------------
-        prompt_gemini = f"""
-        Eres un experto en inventario. El producto '{nombre_producto}' ha tenido estas ventas: {cantidades_historicas}. 
-        Nuestro modelo XGBoost proyecta estas ventas para los próximos días: {predicciones_xgboost}. 
-        Escribe una recomendación corta de máximo 3 líneas indicando si debemos comprar más stock o no.
-        """
-        
+        cache_key = producto.strip().lower()
+        now = time()
+
+        if cache_key in cache:
+            ts, cached_response = cache[cache_key]
+            if now - ts < CACHE_TTL:
+                print(f"♻️ Respuesta desde caché para '{producto}'")
+                return cached_response
+
+        # ---------------------------------------------------------
+        # 6. API DE GEMINI (Recomendación Estratégica)
+        # ---------------------------------------------------------
+        total_hist = sum(cantidades_historicas)
+        avg_hist = total_hist / len(cantidades_historicas) if cantidades_historicas else 0
+
+        prompt_gemini = (
+            f"Producto: '{nombre_producto}'. "
+            f"Ventas históricas: min={min(cantidades_historicas)}, "
+            f"máx={max(cantidades_historicas)}, promedio={avg_hist:.1f}. "
+            f"Proyección XGBoost próximos días: {predicciones_xgboost}. "
+            f"¿Recomiendas comprar más stock? Máximo 2 líneas."
+        )
+
         try:
             response = client.models.generate_content(
                 model=GEMINI_MODEL,
                 contents=prompt_gemini
             )
             texto_recomendacion = response.text
+        except google_exceptions.ResourceExhausted:
+            print("❌ Cuota de Gemini agotada (429/ResourceExhausted)")
+            texto_recomendacion = "Análisis de IA en pausa por optimización de recursos. Basado en la gráfica, evalúe la tendencia para la producción."
+        except google_exceptions.DeadlineExceeded:
+            print("❌ Timeout de Gemini")
+            texto_recomendacion = "El análisis de IA tardó demasiado. Use los datos de la gráfica para decidir."
         except Exception as gemini_error:
-            # Degradación elegante con impresión en consola para que sepas qué falló
             print(f"❌ Error de Gemini: {gemini_error}")
             texto_recomendacion = "Recomendación IA no disponible temporalmente. Basado en la gráfica, evalúe la tendencia."
 
@@ -149,9 +177,9 @@ async def predecir_demanda(
         nivel_alerta = "Alto" if cantidad_estimada_final > 70 else "Normal"
 
         # ---------------------------------------------------------
-        # 6. RETORNO DEL DICCIONARIO ESTRUCTURADO PARA REACT
+        # 7. RETORNO DEL DICCIONARIO ESTRUCTURADO PARA REACT
         # ---------------------------------------------------------
-        return {
+        response_data = {
             "producto": nombre_producto,
             "recomendacion": texto_recomendacion,
             "nivel": nivel_alerta,
@@ -164,12 +192,15 @@ async def predecir_demanda(
                         "data": data_grafica,
                         "borderColor": "#3b82f6",
                         "backgroundColor": "rgba(59, 130, 246, 0.5)",
-                        "tension": 0.3, # Hace que la línea sea curva
-                        "fill": True    # Pinta el fondo debajo de la línea
+                        "tension": 0.3,
+                        "fill": True
                     }
                 ]
             }
         }
+
+        cache[cache_key] = (time(), response_data)
+        return response_data
 
     except Exception as e:
         # ---------------------------------------------------------
