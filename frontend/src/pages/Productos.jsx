@@ -8,6 +8,7 @@ function Productos() {
   const [modal, setModal] = useState(false)
   const [editId, setEditId] = useState(null)
   const [form, setForm] = useState({ nombre: '', categoria: 'cuidado hogar', precio: '', stock: '' })
+  const [imagen, setImagen] = useState(null)
 
   useEffect(() => {
     cargarProductos()
@@ -24,9 +25,9 @@ function Productos() {
     if (!form.nombre || !form.precio || !form.stock) { alert('Completa todos los campos'); return }
     const datos = { ...form, precio: parseInt(form.precio), stock: parseInt(form.stock), stockMin: 10 }
     if (editId !== null) {
-      await editarProducto(editId, datos)
+      await editarProducto(editId, datos, imagen)
     } else {
-      await crearProducto(datos)
+      await crearProducto(datos, imagen)
     }
     await cargarProductos()
     cerrarModal()
@@ -41,6 +42,7 @@ function Productos() {
   function abrirEditar(p) {
     setForm({ nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock })
     setEditId(p.id)
+    setImagen(null)
     setModal(true)
   }
 
@@ -48,6 +50,7 @@ function Productos() {
     setModal(false)
     setEditId(null)
     setForm({ nombre: '', categoria: 'cuidado hogar', precio: '', stock: '' })
+    setImagen(null)
   }
 
   const inputStyle = {
@@ -123,6 +126,15 @@ function Productos() {
                 <option>cuidado personal</option>
                 <option>cuidado facial</option>
               </select>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Imagen (opcional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setImagen(e.target.files[0] || null)}
+                style={inputStyle}
+              />
             </div>
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
               <button onClick={cerrarModal} style={{ flex: 1, background: 'transparent', border: '1px solid #30363d', color: '#8b949e', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>Cancelar</button>

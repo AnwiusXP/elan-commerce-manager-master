@@ -10,9 +10,11 @@ import React from 'react';
  * @param {Object} props.style - Estilos adicionales para la etiqueta img.
  * @param {string} props.className - Clases CSS adicionales.
  */
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const ProductImage = ({ id, alt, style = {}, className = "" }) => {
   const defaultImage = '/images/products/default-product.jpg';
-  const productImage = `/images/products/${id}.jpg`;
+  const productImage = `${API_URL}/static/images/products/${id}.jpg`;
 
   const handleError = (e) => {
     e.target.onerror = null; // Previene bucles infinitos

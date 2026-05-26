@@ -5,13 +5,31 @@ export const getProductos = async () => {
   return response.data
 }
 
-export const crearProducto = async (producto) => {
-  const res = await api.post('/api/productos', producto)
+export const crearProducto = async (producto, imagenFile = null) => {
+  const formData = new FormData()
+  for (const key in producto) {
+    formData.append(key, producto[key])
+  }
+  if (imagenFile) {
+    formData.append('imagen', imagenFile)
+  }
+  const res = await api.post('/api/productos', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
   return res.data
 }
 
-export const editarProducto = async (id, producto) => {
-  const res = await api.put(`/api/productos/${id}`, producto)
+export const editarProducto = async (id, producto, imagenFile = null) => {
+  const formData = new FormData()
+  for (const key in producto) {
+    formData.append(key, producto[key])
+  }
+  if (imagenFile) {
+    formData.append('imagen', imagenFile)
+  }
+  const res = await api.put(`/api/productos/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
   return res.data
 }
 
