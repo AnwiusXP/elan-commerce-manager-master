@@ -15,6 +15,8 @@ import ResetPassword from './pages/ResetPassword'
 import Usuarios from './pages/Usuarios'
 import Register from './pages/Register'
 import ActivationPage from './pages/ActivationPage'
+import Pedidos from './pages/Pedidos'
+
 
 function App() {
   return (
@@ -35,6 +37,7 @@ function App() {
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/productos" element={<PrivateRoute><Productos /></PrivateRoute>} />
         <Route path="/ventas" element={<PrivateRoute><Ventas /></PrivateRoute>} />
+        <Route path="/pedidos" element={<PrivateRoute><Pedidos /></PrivateRoute>} />
         <Route path="/inventario" element={<PrivateRoute><Inventario /></PrivateRoute>} />
         <Route path="/reportes" element={<PrivateRoute><Reportes /></PrivateRoute>} />
         <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />

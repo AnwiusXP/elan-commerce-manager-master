@@ -27,6 +27,7 @@ function Sidebar({ active }) {
           { path: '/dashboard', label: 'Inicio' },
           { path: '/productos', label: 'Productos' },
           { path: '/ventas', label: 'Ventas' },
+          { path: '/pedidos', label: 'Pedidos' },
           { path: '/inventario', label: 'Inventario' },
           { path: '/reportes', label: 'Reportes' },
           { path: '/usuarios', label: 'Usuarios' },

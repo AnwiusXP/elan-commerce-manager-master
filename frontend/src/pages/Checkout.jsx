@@ -155,8 +155,16 @@ function Checkout() {
                     }}>
                       📞 {resultado.nequi_duena}
                     </span>
-                    <span style={{ display: 'block', color: '#6b7280', fontSize: '0.82rem', marginTop: '4px' }}>
+                    <span style={{ display: 'block', color: '#6b7280', fontSize: '0.82rem', marginTop: '4px', marginBottom: '12px' }}>
                       A nombre de: {resultado.propietario_nequi}
+                    </span>
+                    <span style={{
+                      display: 'block', background: '#fef3c7', border: '1px solid #f59e0b',
+                      borderRadius: '8px', padding: '10px 14px', color: '#92400e',
+                      fontSize: '0.9rem', lineHeight: '1.4'
+                    }}>
+                      📝 En el mensaje de tu transferencia, escribe tu número de guía:<br/>
+                      <strong style={{ fontWeight: '800', letterSpacing: '1px' }}>{resultado.guia_rastreo}</strong>
                     </span>
                   </p>
                 </div>
