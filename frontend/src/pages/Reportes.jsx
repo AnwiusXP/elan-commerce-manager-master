@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import html2pdf from 'html2pdf.js';
+import { FileDown, Loader2, Table } from 'lucide-react';
 import api from '../services/api';
 import { Line } from 'react-chartjs-2';
+import './Reportes.css';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
-import Sidebar from '../components/Sidebar'; // <-- Importamos tu Sidebar
+import Sidebar from '../components/Sidebar';
 
-// Registramos Filler para evitar el warning de la consola
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 function Reportes() {
@@ -15,9 +17,12 @@ function Reportes() {
   const [productoId, setProductoId] = useState("");
   const [prediccion, setPrediccion] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const [error, setError] = useState(null);
+  const reporteRef = useRef(null);
+  const reportePdfRef = useRef(null);
 
-  // Carga de productos desde la base de datos
   useEffect(() => {
     const fetchProductos = async () => {
       try {
@@ -38,17 +43,134 @@ function Reportes() {
     }
     setCargando(true);
     setError(null);
+    setPrediccion(null);
     try {
-      const response = await api.get(`/api/ia/predict?producto=${productoId}`);
+      const response = await api.get('/api/ia/predict', { params: { producto: productoId } });
       setPrediccion(response.data);
-    } catch (err) {
-      setError('Error en la conexión con el motor de IA.');
+    } catch {
+      setError('Error en la conexion con el motor de IA.');
     } finally {
       setCargando(false);
     }
   };
 
-  // --- ESTILOS COMPARTIDOS (Heredados de tu Dashboard) ---
+  const crearNombreArchivo = (extension) => {
+    const producto = prediccion?.producto || productoId || 'reporte';
+    const limpio = String(producto).replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'reporte';
+    const fecha = new Date().toISOString().slice(0, 10);
+    return `reporte_ia_${limpio}_${fecha}.${extension}`;
+  };
+
+  const descargarPdf = async () => {
+    if (!reportePdfRef.current) return;
+    setExportandoPdf(true);
+    setError(null);
+    try {
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: crearNombreArchivo('pdf'),
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        })
+        .from(reportePdfRef.current)
+        .save();
+    } catch (err) {
+      console.error('Error exportando PDF:', err);
+      setError('No se pudo generar el PDF del reporte.');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
+
+  const descargarExcel = async () => {
+    setExportandoExcel(true);
+    setError(null);
+    try {
+      const response = await api.get('/api/ia/predict/export', {
+        params: { producto: productoId },
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', crearNombreArchivo('xlsx'));
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exportando Excel:', err);
+      setError('No se pudo descargar el Excel del reporte.');
+    } finally {
+      setExportandoExcel(false);
+    }
+  };
+
+  const puedeExportar = !!prediccion && !cargando && !error && prediccion.nivel !== 'Error';
+  const fechaReporte = new Date().toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const chartOptionsDark = {
+    responsive: true,
+    plugins: {
+      legend: {
+        labels: { color: '#c9d1d9' }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#8b949e' },
+        grid: { color: '#21262d' }
+      },
+      y: {
+        ticks: { color: '#8b949e' },
+        grid: { color: '#21262d' }
+      }
+    }
+  };
+
+  const chartOptionsPdf = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: {
+      legend: {
+        labels: { color: '#374151', font: { size: 11 } }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#4b5563', maxRotation: 0 },
+        grid: { color: '#e5e7eb' }
+      },
+      y: {
+        ticks: { color: '#4b5563' },
+        grid: { color: '#e5e7eb' }
+      }
+    }
+  };
+
+  const datosGraficaPdf = prediccion?.datosGrafica ? {
+    ...prediccion.datosGrafica,
+    datasets: (prediccion.datosGrafica.datasets || []).map((dataset) => ({
+      ...dataset,
+      borderColor: '#1e8a5e',
+      backgroundColor: 'rgba(30, 138, 94, 0.14)',
+      pointBackgroundColor: '#1e8a5e',
+      pointBorderColor: '#ffffff'
+    }))
+  } : null;
+
   const statsStyle = {
     background: '#161b22',
     border: '1px solid #30363d',
@@ -78,11 +200,18 @@ function Reportes() {
     transition: 'background 0.2s'
   };
 
-  return (
-    // Se asume que el body o un contenedor padre tiene background oscuro (#0d1117) y color de texto claro (#c9d1d9)
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117', color: '#c9d1d9' }}>
+  const exportButtonStyle = (variant = 'primary', disabled = false) => ({
+    ...buttonStyle,
+    background: variant === 'primary' ? '#1e8a5e' : '#3b82f6',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    opacity: disabled ? 0.55 : 1,
+    cursor: disabled ? 'not-allowed' : 'pointer'
+  });
 
-      {/* 1. SIDEBAR INTEGRADO */}
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117', color: '#c9d1d9' }}>
       <Sidebar active="Reportes" />
 
       <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
@@ -90,8 +219,7 @@ function Reportes() {
           Inteligencia de Negocios (IA)
         </h1>
 
-        {/* CONTROLES DE ANÁLISIS */}
-        <div style={{ ...statsStyle, marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
+        <div style={{ ...statsStyle, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <select
             style={inputStyle}
             value={productoId}
@@ -104,12 +232,33 @@ function Reportes() {
             ))}
           </select>
           <button
-            style={buttonStyle}
+            style={{ ...buttonStyle, opacity: cargando ? 0.7 : 1, cursor: cargando ? 'not-allowed' : 'pointer' }}
             onClick={ejecutarAnalisis}
             disabled={cargando}
           >
             {cargando ? 'Analizando...' : 'Analizar Datos'}
           </button>
+
+          <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+            <button
+              style={exportButtonStyle('primary', !puedeExportar || exportandoPdf)}
+              onClick={descargarPdf}
+              disabled={!puedeExportar || exportandoPdf}
+              title="Descargar reporte visual en PDF"
+            >
+              {exportandoPdf ? <Loader2 size={16} className="spin" /> : <FileDown size={16} />}
+              {exportandoPdf ? 'Generando PDF...' : 'Descargar PDF'}
+            </button>
+            <button
+              style={exportButtonStyle('secondary', !puedeExportar || exportandoExcel)}
+              onClick={descargarExcel}
+              disabled={!puedeExportar || exportandoExcel}
+              title="Descargar datos y proyecciones en Excel"
+            >
+              {exportandoExcel ? <Loader2 size={16} className="spin" /> : <Table size={16} />}
+              {exportandoExcel ? 'Generando Excel...' : 'Descargar Excel'}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -118,12 +267,9 @@ function Reportes() {
           </div>
         )}
 
-        {/* RESULTADOS DE LA PREDICCIÓN */}
         {prediccion && (
-          <>
-            {/* Tarjetas de Estadísticas (Mismo diseño que el Dashboard) */}
+          <div ref={reporteRef} style={{ backgroundColor: '#0d1117', color: '#c9d1d9', padding: '4px' }}>
             <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
-
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Producto Analizado</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
@@ -132,7 +278,7 @@ function Reportes() {
               </div>
 
               <div style={statsStyle}>
-                <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Demanda Proyectada (Próx. Día)</div>
+                <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Demanda Proyectada (Prox. Dia)</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#1e8a5e' }}>
                   {prediccion.cantidad_estimada} <span style={{ fontSize: '1rem', color: '#8b949e' }}>unidades</span>
                 </div>
@@ -148,46 +294,26 @@ function Reportes() {
                   {prediccion.nivel}
                 </div>
               </div>
-
             </div>
 
-            {/* Tarjeta de Recomendación Gemini (Destacada) */}
             <div style={{ ...statsStyle, marginBottom: '24px', borderLeft: '4px solid #3b82f6' }}>
               <div style={{ color: '#8b949e', fontSize: '0.85rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>✨</span> Sugerencia Estratégica (IA)
+                <span aria-hidden="true">*</span> Sugerencia Estrategica (IA)
               </div>
               <div style={{ fontSize: '1rem', lineHeight: '1.5' }}>
                 {prediccion.recomendacion}
               </div>
             </div>
 
-            {/* Gráfico de Tendencias adaptado al Dark Mode */}
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '24px' }}>
               <div style={{ color: '#8b949e', fontSize: '0.85rem', marginBottom: '16px' }}>
-                Proyección de Ventas (Histórico + XGBoost)
+                Proyeccion de Ventas (Historico + XGBoost)
               </div>
 
               {prediccion.datosGrafica && prediccion.datosGrafica.labels.length > 0 ? (
                 <Line
                   data={prediccion.datosGrafica}
-                  options={{
-                    responsive: true,
-                    plugins: {
-                      legend: {
-                        labels: { color: '#c9d1d9' }
-                      }
-                    },
-                    scales: {
-                      x: {
-                        ticks: { color: '#8b949e' },
-                        grid: { color: '#21262d' }
-                      },
-                      y: {
-                        ticks: { color: '#8b949e' },
-                        grid: { color: '#21262d' }
-                      }
-                    }
-                  }}
+                  options={chartOptionsDark}
                 />
               ) : (
                 <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>
@@ -195,7 +321,55 @@ function Reportes() {
                 </div>
               )}
             </div>
-          </>
+          </div>
+        )}
+
+        {prediccion && (
+          <div className="pdf-export-stage" aria-hidden="true">
+            <div ref={reportePdfRef} className="pdf-report">
+              <header className="pdf-report-header pdf-section">
+                <div>
+                  <div className="pdf-brand">Elan Pure</div>
+                  <h1>Reporte de Inteligencia de Negocios - Elan Pure</h1>
+                </div>
+                <div className="pdf-report-meta">
+                  <div>{fechaReporte}</div>
+                  <strong>{prediccion.producto !== "Todos" ? `Producto: ${prediccion.producto}` : 'Producto: Global'}</strong>
+                </div>
+              </header>
+
+              <section className="pdf-kpi-grid pdf-section">
+                <div className="pdf-kpi-card">
+                  <span>Demanda proyectada</span>
+                  <strong>{prediccion.cantidad_estimada}</strong>
+                  <small>unidades</small>
+                </div>
+                <div className="pdf-kpi-card">
+                  <span>Nivel de alerta</span>
+                  <strong className={prediccion.nivel === 'Alto' ? 'pdf-alert-high' : 'pdf-alert-normal'}>
+                    {prediccion.nivel}
+                  </strong>
+                  <small>estado del analisis</small>
+                </div>
+              </section>
+
+              <section className="pdf-section pdf-text-section">
+                <div className="pdf-section-label">Resumen Ejecutivo</div>
+                <p>{prediccion.recomendacion}</p>
+              </section>
+
+              <section className="pdf-section pdf-chart-section">
+                <div className="pdf-section-label">Proyeccion de Ventas</div>
+                {datosGraficaPdf && datosGraficaPdf.labels.length > 0 ? (
+                  <div className="pdf-chart-box">
+                    <Line data={datosGraficaPdf} options={chartOptionsPdf} />
+                  </div>
+                ) : (
+                  <div className="pdf-empty-chart">No hay suficientes datos para graficar.</div>
+                )}
+              </section>
+            </div>
+          </div>
         )}
       </div>
     </div>

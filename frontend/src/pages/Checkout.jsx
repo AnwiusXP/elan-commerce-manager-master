@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { crearPedido } from '../services/pedidoService'
+import NavbarPublico from '../components/NavbarPublico'
+import ProductImage from '../components/ProductImage'
 
 function Checkout() {
   const [carrito, setCarrito] = useState([])
@@ -78,11 +80,8 @@ function Checkout() {
   // --- Pantalla de Confirmación de Pedido ---
   if (resultado) {
     return (
-      <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
-        <div style={{ background: '#0d1117', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link to="/" style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.1rem', textDecoration: 'none' }}>← Élan Pure</Link>
-          <span style={{ color: '#2dd48b', fontSize: '0.9rem', fontWeight: '600' }}>✅ Pedido Registrado</span>
-        </div>
+      <div className="theme-public-clean">
+        <NavbarPublico totalCarrito={0} showSearch={false} />
 
         <div style={{ maxWidth: '680px', margin: '48px auto', padding: '0 20px' }}>
           {/* Success Card */}
@@ -108,11 +107,11 @@ function Checkout() {
               <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#8b949e', marginBottom: '8px' }}>
                 Tu Número de Guía
               </div>
-              <div style={{ fontSize: '2.2rem', fontWeight: '800', letterSpacing: '3px', marginBottom: '12px', color: '#2dd48b' }}>
+              <div style={{ fontSize: '2.2rem', fontWeight: '800', letterSpacing: '3px', marginBottom: '12px', color: 'var(--color-brand-primary)' }}>
                 {resultado.guia_rastreo}
               </div>
               <button onClick={copiarGuia} style={{
-                background: copiado ? '#2dd48b' : 'rgba(255,255,255,0.1)',
+                background: copiado ? 'var(--color-brand-primary)' : 'rgba(255,255,255,0.1)',
                 color: copiado ? '#0d1117' : '#e6edf3',
                 border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: '8px', padding: '8px 20px', cursor: 'pointer',
@@ -133,7 +132,7 @@ function Checkout() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <div style={{
-                    background: '#1e8a5e', color: '#fff', borderRadius: '50%',
+                    background: 'var(--color-brand-primary)', color: '#fff', borderRadius: '50%',
                     width: '28px', height: '28px', minWidth: '28px', display: 'flex',
                     alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem'
                   }}>1</div>
@@ -143,12 +142,12 @@ function Checkout() {
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <div style={{
-                    background: '#1e8a5e', color: '#fff', borderRadius: '50%',
+                    background: 'var(--color-brand-primary)', color: '#fff', borderRadius: '50%',
                     width: '28px', height: '28px', minWidth: '28px', display: 'flex',
                     alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem'
                   }}>2</div>
                   <p style={{ color: '#374151', fontSize: '0.92rem', margin: 0, lineHeight: '1.5' }}>
-                    Envía el total de <strong style={{ color: '#1e8a5e' }}>${resultado.total?.toLocaleString('es-CO')}</strong> al número de Nequi:
+                    Envía el total de <strong style={{ color: 'var(--color-brand-primary)' }}>${resultado.total?.toLocaleString('es-CO')}</strong> al número de Nequi:
                     <span style={{
                       display: 'block', background: '#dcfce7', borderRadius: '8px',
                       padding: '8px 14px', marginTop: '8px', fontWeight: '700',
@@ -163,7 +162,7 @@ function Checkout() {
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <div style={{
-                    background: '#1e8a5e', color: '#fff', borderRadius: '50%',
+                    background: 'var(--color-brand-primary)', color: '#fff', borderRadius: '50%',
                     width: '28px', height: '28px', minWidth: '28px', display: 'flex',
                     alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem'
                   }}>3</div>
@@ -177,7 +176,7 @@ function Checkout() {
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <Link to={`/rastreo?guia=${resultado.guia_rastreo}`} style={{
-                background: '#1e8a5e', color: '#fff', textDecoration: 'none',
+                background: 'var(--color-brand-primary)', color: '#fff', textDecoration: 'none',
                 borderRadius: '12px', padding: '14px 28px', fontWeight: '700',
                 fontSize: '0.95rem', transition: 'background 0.2s', display: 'inline-flex',
                 alignItems: 'center', gap: '8px'
@@ -200,11 +199,8 @@ function Checkout() {
 
   // --- Formulario de Checkout ---
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
-      <div style={{ background: '#0d1117', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link to="/carrito" style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.1rem', textDecoration: 'none' }}>← Volver al Carrito</Link>
-        <span style={{ color: '#8b949e', fontSize: '0.9rem' }}>Nequi Contra Entrega 📱</span>
-      </div>
+    <div className="theme-public-clean">
+      <NavbarPublico totalCarrito={carrito.reduce((a, it) => a + it.cantidad, 0)} showSearch={false} />
 
       <div style={{ maxWidth: '960px', margin: '40px auto', padding: '0 20px' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0d1117', marginBottom: '32px' }}>Datos de Envío y Pago</h1>
@@ -272,9 +268,18 @@ function Checkout() {
           <div style={{ background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px', padding: '28px', position: 'sticky', top: '20px' }}>
             <h3 style={{ fontWeight: '700', color: '#0d1117', marginBottom: '20px', fontSize: '1rem' }}>Resumen del pedido</h3>
             {carrito.map((it, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.88rem', color: '#4b5563' }}>
-                <span>{it.nombre} <span style={{ color: '#9ca3af' }}>x{it.cantidad}</span></span>
-                <span style={{ fontWeight: '600' }}>${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ width: '40px', height: '40px', background: '#f8f9fa', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', flexShrink: 0 }}>
+                  <ProductImage 
+                    id={it.id || it.producto_id} 
+                    alt={it.nombre} 
+                    style={{ width: '100%', height: '100%', borderRadius: '0' }}
+                  />
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', color: '#4b5563' }}>
+                  <span>{it.nombre} <span style={{ color: '#9ca3af' }}>x{it.cantidad}</span></span>
+                  <span style={{ fontWeight: '600' }}>${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
+                </div>
               </div>
             ))}
             <div style={{
@@ -286,7 +291,7 @@ function Checkout() {
             </div>
             <button onClick={handleCheckout} disabled={cargando} style={{
               width: '100%', marginTop: '20px', padding: '14px',
-              background: cargando ? '#6b7280' : '#1e8a5e', color: '#fff',
+              background: cargando ? '#6b7280' : 'var(--color-brand-primary)', color: '#fff',
               border: 'none', borderRadius: '10px', fontWeight: '700',
               fontSize: '0.95rem', cursor: cargando ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s'
@@ -312,3 +317,4 @@ const formInput = { width: '100%', padding: '11px 14px', borderRadius: '8px', bo
 const formHint = { display: 'block', color: '#9ca3af', fontSize: '0.78rem', marginTop: '4px' }
 
 export default Checkout
+

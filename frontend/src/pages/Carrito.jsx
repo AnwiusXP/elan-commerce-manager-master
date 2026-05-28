@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import NavbarPublico from '../components/NavbarPublico'
+import ProductImage from '../components/ProductImage'
 
 function Carrito() {
   const [carrito, setCarrito] = useState([])
+  const [cargando, setCargando] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -24,14 +27,9 @@ function Carrito() {
   }
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
+    <div className="theme-public-clean">
 
-      {/* Navbar */}
-      <div style={{ background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 32px' }}>
-        <Link to="/" style={{ color: '#e6edf3', fontWeight: '700', fontSize: '1.1rem', textDecoration: 'none' }}>
-          ← Élan Pure
-        </Link>
-      </div>
+      <NavbarPublico totalCarrito={carrito.length > 0 ? carrito.reduce((a, it) => a + it.cantidad, 0) : 0} showSearch={false} />
 
       <div style={{ padding: '40px 32px' }}>
         <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0d1117', marginBottom: '28px' }}>
@@ -55,10 +53,20 @@ function Carrito() {
                   padding: '16px 20px', marginBottom: '12px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
-                  <div>
-                    <div style={{ fontWeight: '700', color: '#0d1117', marginBottom: '4px' }}>{it.nombre}</div>
-                    <div style={{ color: '#8b949e', fontSize: '0.85rem' }}>Cantidad: {it.cantidad}</div>
-                    <div style={{ color: '#1e8a5e', fontWeight: '700' }}>${it.precio.toLocaleString('es-CO')}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {/* Thumbnail */}
+                    <div style={{ width: '60px', height: '60px', background: '#f8f9fa', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee' }}>
+                      <ProductImage 
+                        id={it.producto_id || it.id} 
+                        alt={it.nombre} 
+                        style={{ width: '100%', height: '100%', borderRadius: '0' }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '700', color: '#0d1117', marginBottom: '4px' }}>{it.nombre}</div>
+                      <div style={{ color: '#8b949e', fontSize: '0.85rem' }}>Cantidad: {it.cantidad}</div>
+                      <div style={{ color: '#1e8a5e', fontWeight: '700' }}>${it.precio.toLocaleString('es-CO')}</div>
+                    </div>
                   </div>
                   <button onClick={() => eliminar(i)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer', fontSize: '1.1rem' }}>
                     🗑️

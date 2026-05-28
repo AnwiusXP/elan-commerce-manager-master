@@ -1,8 +1,9 @@
 # backend/main.py
-from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sql_func, text as sql_text
@@ -104,6 +105,12 @@ app.add_middleware(
 if predict_router:
     # 2. Registro del Router sin barra diagonal final
     app.include_router(predict_router, prefix="/api/ia/predict", tags=["IA"])
+
+# --- ARCHIVOS ESTÁTICOS (IMÁGENES DE PRODUCTOS) ---
+
+UPLOAD_DIR = "static/images/products"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # --- ESQUEMAS PYDANTIC ---
 
@@ -734,29 +741,66 @@ async def list_catalogo(db: Session = Depends(get_db)):
 
 @app.post("/api/productos", status_code=201)
 async def create_producto(
-    producto: ProductoBase,
+    nombre: str = Form(...),
+    categoria: str = Form(...),
+    precio: float = Form(...),
+    stock: int = Form(...),
+    stockMin: int = Form(...),
+    imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    nuevo = Producto(**producto.dict())
+    nuevo = Producto(
+        nombre=nombre,
+        categoria=categoria,
+        precio=precio,
+        stock=stock,
+        stockMin=stockMin,
+    )
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
+
+    if imagen and imagen.filename:
+        ext = os.path.splitext(imagen.filename)[1] or ".jpg"
+        filename = f"{nuevo.id}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        contents = await imagen.read()
+        with open(filepath, "wb") as f:
+            f.write(contents)
+
     return nuevo
 
 
 @app.put("/api/productos/{producto_id}")
 async def update_producto(
     producto_id: int,
-    producto: ProductoBase,
+    nombre: str = Form(...),
+    categoria: str = Form(...),
+    precio: float = Form(...),
+    stock: int = Form(...),
+    stockMin: int = Form(...),
+    imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
-    for key, value in producto.dict().items():
-        setattr(p, key, value)
+    p.nombre = nombre
+    p.categoria = categoria
+    p.precio = precio
+    p.stock = stock
+    p.stockMin = stockMin
+
+    if imagen and imagen.filename:
+        ext = os.path.splitext(imagen.filename)[1] or ".jpg"
+        filename = f"{producto_id}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        contents = await imagen.read()
+        with open(filepath, "wb") as f:
+            f.write(contents)
+
     db.commit()
     db.refresh(p)
     return p
@@ -771,6 +815,13 @@ async def delete_producto(
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        filepath = os.path.join(UPLOAD_DIR, f"{producto_id}{ext}")
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            break
+
     db.delete(p)
     db.commit()
 
