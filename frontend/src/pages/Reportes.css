@@ -137,3 +137,145 @@
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from {transform: rotate(0deg);} to {transform: rotate(360deg);} }
+
+.pdf-export-stage {
+  position: absolute;
+  left: -12000px;
+  top: 0;
+  width: 794px;
+  min-height: 1123px;
+  overflow: visible;
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.pdf-report {
+  width: 794px;
+  min-height: 1123px;
+  box-sizing: border-box;
+  padding: 48px;
+  background: #ffffff;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+}
+
+.pdf-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-report-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: flex-start;
+  padding-bottom: 22px;
+  border-bottom: 3px solid #1e8a5e;
+  margin-bottom: 26px;
+}
+
+.pdf-brand {
+  color: #1e8a5e;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.pdf-report h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 28px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.pdf-report-meta {
+  min-width: 190px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.pdf-report-meta strong {
+  color: #111827;
+}
+
+.pdf-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pdf-kpi-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 18px;
+  background: #f9fafb;
+}
+
+.pdf-kpi-card span,
+.pdf-kpi-card small {
+  display: block;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.pdf-kpi-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  color: #1e8a5e;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.pdf-alert-high {
+  color: #b91c1c !important;
+}
+
+.pdf-alert-normal {
+  color: #1e8a5e !important;
+}
+
+.pdf-text-section,
+.pdf-chart-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 22px;
+  background: #ffffff;
+}
+
+.pdf-section-label {
+  color: #1e8a5e;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.pdf-text-section p {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.pdf-chart-box {
+  width: 100%;
+  height: 320px;
+}
+
+.pdf-empty-chart {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+}

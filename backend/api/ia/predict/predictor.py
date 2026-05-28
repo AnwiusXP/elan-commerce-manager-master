@@ -12,6 +12,9 @@ from datetime import datetime
 from io import BytesIO
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 try:
@@ -30,6 +33,12 @@ CACHE_GEMINI = {}
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 GEMINI_MODEL = "gemini-3.1-flash-lite"
 FECHAS_FUTURAS = ["2026-04-15", "2026-04-16", "2026-04-17"]
+
+EXCEL_VERDE_CORPORATIVO = "1E8A5E"
+EXCEL_GRIS_OSCURO = "161B22"
+EXCEL_BLANCO = "FFFFFF"
+EXCEL_GRIS_BORDE = "D0D7DE"
+EXCEL_FONDO_SUAVE = "F6F8FA"
 
 
 def _extraer_datos_ventas(db: Session) -> pd.DataFrame:
@@ -198,6 +207,100 @@ def _nombre_archivo_seguro(producto: str) -> str:
     return f"reporte_ia_{nombre}_{fecha}.xlsx"
 
 
+def _agregar_tabla_excel(ws, encabezados: list[str], filas: list[list]):
+    ws.append(encabezados)
+    for fila in filas:
+        ws.append(fila)
+
+
+def _estilizar_hoja_excel(ws, columnas_numericas: set[str] | None = None, columnas_largas: set[str] | None = None):
+    columnas_numericas = columnas_numericas or set()
+    columnas_largas = columnas_largas or set()
+    header_fill = PatternFill("solid", fgColor=EXCEL_VERDE_CORPORATIVO)
+    alt_fill = PatternFill("solid", fgColor=EXCEL_FONDO_SUAVE)
+    header_font = Font(color=EXCEL_BLANCO, bold=True)
+    border = Border(
+        left=Side(style="thin", color=EXCEL_GRIS_BORDE),
+        right=Side(style="thin", color=EXCEL_GRIS_BORDE),
+        top=Side(style="thin", color=EXCEL_GRIS_BORDE),
+        bottom=Side(style="thin", color=EXCEL_GRIS_BORDE)
+    )
+
+    encabezados = [cell.value for cell in ws[1]]
+    ws.freeze_panes = "A2"
+
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border
+
+    for row in ws.iter_rows(min_row=2):
+        for cell in row:
+            encabezado = encabezados[cell.column - 1]
+            cell.border = border
+            if cell.row % 2 == 0:
+                cell.fill = alt_fill
+            if encabezado in columnas_largas:
+                cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+            elif encabezado in columnas_numericas or "fecha" in encabezado:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    for col_idx, encabezado in enumerate(encabezados, start=1):
+        max_length = len(str(encabezado))
+        for cell in ws.iter_cols(min_col=col_idx, max_col=col_idx, min_row=2):
+            for item in cell:
+                value = "" if item.value is None else str(item.value)
+                max_length = max(max_length, len(value))
+
+        if encabezado in columnas_largas:
+            width = min(max(max_length * 0.55, 45), 80)
+        else:
+            width = min(max(max_length + 4, 12), 32)
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    ws.row_dimensions[1].height = 24
+    if columnas_largas:
+        for row_idx in range(2, ws.max_row + 1):
+            ws.row_dimensions[row_idx].height = 60
+
+
+def _construir_workbook_reporte(df_resumen: pd.DataFrame, df_historico: pd.DataFrame, df_proyeccion: pd.DataFrame) -> Workbook:
+    wb = Workbook()
+    ws_resumen = wb.active
+    ws_resumen.title = "Resumen"
+    ws_historico = wb.create_sheet("Historico")
+    ws_proyeccion = wb.create_sheet("Proyeccion")
+
+    _agregar_tabla_excel(ws_resumen, df_resumen.columns.tolist(), df_resumen.values.tolist())
+    _agregar_tabla_excel(ws_historico, df_historico.columns.tolist(), df_historico.values.tolist())
+    _agregar_tabla_excel(ws_proyeccion, df_proyeccion.columns.tolist(), df_proyeccion.values.tolist())
+
+    _estilizar_hoja_excel(
+        ws_resumen,
+        columnas_numericas={"demanda_estimada"},
+        columnas_largas={"recomendacion_ia"}
+    )
+    _estilizar_hoja_excel(
+        ws_historico,
+        columnas_numericas={"cantidad"}
+    )
+    _estilizar_hoja_excel(
+        ws_proyeccion,
+        columnas_numericas={"cantidad_proyectada"}
+    )
+
+    ws_resumen.sheet_view.showGridLines = False
+    ws_historico.sheet_view.showGridLines = False
+    ws_proyeccion.sheet_view.showGridLines = False
+    ws_resumen.sheet_properties.tabColor = EXCEL_VERDE_CORPORATIVO
+    ws_historico.sheet_properties.tabColor = EXCEL_GRIS_OSCURO
+    ws_proyeccion.sheet_properties.tabColor = EXCEL_VERDE_CORPORATIVO
+    return wb
+
+
 @router.get("")
 async def predecir_demanda(
     producto: str = Query(default="Todos", description="Nombre o ID del producto"),
@@ -242,10 +345,8 @@ async def exportar_reporte_demanda(
         df_historico = df_historico[["fecha_venta", "producto_id", "nombre_producto", "cantidad"]]
 
     output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df_resumen.to_excel(writer, sheet_name="Resumen", index=False)
-        df_historico.to_excel(writer, sheet_name="Historico", index=False)
-        analisis["proyeccion"].to_excel(writer, sheet_name="Proyeccion", index=False)
+    workbook = _construir_workbook_reporte(df_resumen, df_historico, analisis["proyeccion"])
+    workbook.save(output)
 
     output.seek(0)
     filename = _nombre_archivo_seguro(producto)

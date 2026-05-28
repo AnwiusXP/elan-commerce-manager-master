@@ -21,6 +21,7 @@ function Reportes() {
   const [exportandoExcel, setExportandoExcel] = useState(false);
   const [error, setError] = useState(null);
   const reporteRef = useRef(null);
+  const reportePdfRef = useRef(null);
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -61,24 +62,24 @@ function Reportes() {
   };
 
   const descargarPdf = async () => {
-    if (!reporteRef.current) return;
+    if (!reportePdfRef.current) return;
     setExportandoPdf(true);
     setError(null);
     try {
       await html2pdf()
         .set({
-          margin: 0.4,
+          margin: [10, 10, 10, 10],
           filename: crearNombreArchivo('pdf'),
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
             scale: 2,
-            backgroundColor: '#0d1117',
+            backgroundColor: '#ffffff',
             useCORS: true
           },
-          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         })
-        .from(reporteRef.current)
+        .from(reportePdfRef.current)
         .save();
     } catch (err) {
       console.error('Error exportando PDF:', err);
@@ -113,6 +114,62 @@ function Reportes() {
   };
 
   const puedeExportar = !!prediccion && !cargando && !error && prediccion.nivel !== 'Error';
+  const fechaReporte = new Date().toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const chartOptionsDark = {
+    responsive: true,
+    plugins: {
+      legend: {
+        labels: { color: '#c9d1d9' }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#8b949e' },
+        grid: { color: '#21262d' }
+      },
+      y: {
+        ticks: { color: '#8b949e' },
+        grid: { color: '#21262d' }
+      }
+    }
+  };
+
+  const chartOptionsPdf = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: {
+      legend: {
+        labels: { color: '#374151', font: { size: 11 } }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#4b5563', maxRotation: 0 },
+        grid: { color: '#e5e7eb' }
+      },
+      y: {
+        ticks: { color: '#4b5563' },
+        grid: { color: '#e5e7eb' }
+      }
+    }
+  };
+
+  const datosGraficaPdf = prediccion?.datosGrafica ? {
+    ...prediccion.datosGrafica,
+    datasets: (prediccion.datosGrafica.datasets || []).map((dataset) => ({
+      ...dataset,
+      borderColor: '#1e8a5e',
+      backgroundColor: 'rgba(30, 138, 94, 0.14)',
+      pointBackgroundColor: '#1e8a5e',
+      pointBorderColor: '#ffffff'
+    }))
+  } : null;
 
   const statsStyle = {
     background: '#161b22',
@@ -256,30 +313,61 @@ function Reportes() {
               {prediccion.datosGrafica && prediccion.datosGrafica.labels.length > 0 ? (
                 <Line
                   data={prediccion.datosGrafica}
-                  options={{
-                    responsive: true,
-                    plugins: {
-                      legend: {
-                        labels: { color: '#c9d1d9' }
-                      }
-                    },
-                    scales: {
-                      x: {
-                        ticks: { color: '#8b949e' },
-                        grid: { color: '#21262d' }
-                      },
-                      y: {
-                        ticks: { color: '#8b949e' },
-                        grid: { color: '#21262d' }
-                      }
-                    }
-                  }}
+                  options={chartOptionsDark}
                 />
               ) : (
                 <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>
                   No hay suficientes datos para graficar.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {prediccion && (
+          <div className="pdf-export-stage" aria-hidden="true">
+            <div ref={reportePdfRef} className="pdf-report">
+              <header className="pdf-report-header pdf-section">
+                <div>
+                  <div className="pdf-brand">Elan Pure</div>
+                  <h1>Reporte de Inteligencia de Negocios - Elan Pure</h1>
+                </div>
+                <div className="pdf-report-meta">
+                  <div>{fechaReporte}</div>
+                  <strong>{prediccion.producto !== "Todos" ? `Producto: ${prediccion.producto}` : 'Producto: Global'}</strong>
+                </div>
+              </header>
+
+              <section className="pdf-kpi-grid pdf-section">
+                <div className="pdf-kpi-card">
+                  <span>Demanda proyectada</span>
+                  <strong>{prediccion.cantidad_estimada}</strong>
+                  <small>unidades</small>
+                </div>
+                <div className="pdf-kpi-card">
+                  <span>Nivel de alerta</span>
+                  <strong className={prediccion.nivel === 'Alto' ? 'pdf-alert-high' : 'pdf-alert-normal'}>
+                    {prediccion.nivel}
+                  </strong>
+                  <small>estado del analisis</small>
+                </div>
+              </section>
+
+              <section className="pdf-section pdf-text-section">
+                <div className="pdf-section-label">Resumen Ejecutivo</div>
+                <p>{prediccion.recomendacion}</p>
+              </section>
+
+              <section className="pdf-section pdf-chart-section">
+                <div className="pdf-section-label">Proyeccion de Ventas</div>
+                {datosGraficaPdf && datosGraficaPdf.labels.length > 0 ? (
+                  <div className="pdf-chart-box">
+                    <Line data={datosGraficaPdf} options={chartOptionsPdf} />
+                  </div>
+                ) : (
+                  <div className="pdf-empty-chart">No hay suficientes datos para graficar.</div>
+                )}
+              </section>
             </div>
           </div>
         )}
