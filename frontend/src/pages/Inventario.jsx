@@ -144,7 +144,7 @@ function Inventario() {
     .filter(p => {
       if (!busqueda) return true
       const q = busqueda.toLowerCase()
-      return p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q)
+      return (p?.nombre || '').toLowerCase().includes(q) || (p?.categoria || '').toLowerCase().includes(q)
     })
 
   // Speed bar max for normalization
