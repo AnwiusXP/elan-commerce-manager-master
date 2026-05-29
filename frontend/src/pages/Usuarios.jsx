@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getUsers, createUser, deleteUser, updateUserStatus } from '../services/userService'
+import api from '../services/api'
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
@@ -121,6 +122,7 @@ function Usuarios() {
                 <th style={thStyle}>ID</th>
                 <th style={thStyle}>Username</th>
                 <th style={thStyle}>Email</th>
+                <th style={thStyle}>Rol</th>
                 <th style={thStyle}>Estado</th>
                 <th style={thStyle}>Acciones</th>
               </tr>
@@ -131,6 +133,29 @@ function Usuarios() {
                   <td style={tdStyle}>{u.id}</td>
                   <td style={{ ...tdStyle, fontWeight: '600', color: '#e6edf3' }}>{u.username}</td>
                   <td style={tdStyle}>{u.email}</td>
+                  <td style={tdStyle}>
+                    <select
+                      value={u.rol || 'cliente_base'}
+                      onChange={async (e) => {
+                        const nuevoRol = e.target.value;
+                        try {
+                          await api.put(`/api/users/${u.id}/rol`, { rol: nuevoRol });
+                          setUsuarios(usuarios.map(usr => usr.id === u.id ? { ...usr, rol: nuevoRol } : usr));
+                          setMensaje({ text: 'Rol actualizado', type: 'success' });
+                        } catch (err) {
+                          setMensaje({ text: 'Error al cambiar el rol del usuario', type: 'error' });
+                        }
+                      }}
+                      style={{
+                        background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
+                        borderRadius: '6px', padding: '6px 8px', fontSize: '0.85rem'
+                      }}
+                    >
+                      <option value="cliente_base">Cliente Base</option>
+                      <option value="distribuidor">Distribuidor</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </td>
                   <td style={tdStyle}>
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                       <div style={{

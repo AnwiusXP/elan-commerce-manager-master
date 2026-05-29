@@ -11,6 +11,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=False)
+    rol = Column(String, default="cliente_base", nullable=False)
     activation_token = Column(String, nullable=True)
     activation_expires_at = Column(DateTime, nullable=True)
 
@@ -31,6 +32,8 @@ class Producto(Base):
     nombre = Column(String, index=True)
     categoria = Column(String)
     precio = Column(Float)
+    precio_base = Column(Float, default=0.0, nullable=False)
+    precio_distribuidor = Column(Float, default=0.0, nullable=False)
     stock = Column(Integer)
     stockMin = Column(Integer)
 

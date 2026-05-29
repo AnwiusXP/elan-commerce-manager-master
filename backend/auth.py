@@ -13,6 +13,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 # ========================================================================
 # HASHING DE CONTRASEÑAS — bcrypt directo (compatible con Python 3.14+)
@@ -78,6 +79,21 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     if user is None:
         raise credentials_exception
     return user
+
+def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)):
+    if not credentials:
+        return None
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        db = SessionLocal()
+        user = get_user_by_username(db, username)
+        db.close()
+        return user
+    except JWTError:
+        return None
 
 def get_db():
     db = SessionLocal()

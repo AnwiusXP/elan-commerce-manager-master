@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import api from '../services/api'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
+import { estaAutenticado, obtenerRol } from '../services/authService'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [carrito, setCarrito] = useState([])
+  const autenticado = estaAutenticado()
   
   // Estado para la Vista Previa (Modal)
   const [previewItem, setPreviewItem] = useState(null)
@@ -150,21 +152,35 @@ function Catalogo() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-                    <div style={{ color: '#1e8a5e', fontSize: '1.25rem', fontWeight: '700' }}>
-                      ${p.precio.toLocaleString('es-CO')}
-                    </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); agregarAlCarrito(p) }} 
-                      style={{
-                        background: '#0d1117', color: '#fff', border: 'none',
-                        borderRadius: '50%', width: '40px', height: '40px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', fontSize: '1.1rem', transition: 'background 0.2s'
-                      }}
-                      title="Agregar rápido"
-                    >
-                      +
-                    </button>
+                    {autenticado ? (
+                      <>
+                        <div style={{ color: '#1e8a5e', fontSize: '1.25rem', fontWeight: '700' }}>
+                          ${(p.precio || 0).toLocaleString('es-CO')}
+                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); agregarAlCarrito(p) }} 
+                          style={{
+                            background: '#0d1117', color: '#fff', border: 'none',
+                            borderRadius: '50%', width: '40px', height: '40px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', fontSize: '1.1rem', transition: 'background 0.2s'
+                          }}
+                          title="Agregar rápido"
+                        >
+                          +
+                        </button>
+                      </>
+                    ) : (
+                      <div style={{ marginTop: '12px', textAlign: 'center', width: '100%' }}>
+                        <Link to="/login" style={{
+                          display: 'block', background: '#1168b3', color: '#fff',
+                          textDecoration: 'none', padding: '8px 12px', borderRadius: '8px',
+                          fontSize: '0.85rem', fontWeight: '600', transition: 'background 0.2s'
+                        }}>
+                          🔑 Inicia sesión para ver precios
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -218,32 +234,45 @@ function Catalogo() {
                 {previewItem.nombre}
               </h2>
               
-              <div style={{ fontSize: '1.8rem', color: '#1e8a5e', fontWeight: '700', marginBottom: '24px' }}>
-                ${previewItem.precio.toLocaleString('es-CO')}
-              </div>
-              
-              <p style={{ color: '#6c757d', fontSize: '1rem', lineHeight: '1.6', marginBottom: '32px', flex: '1' }}>
-                Producto premium de nuestra línea {previewItem.categoria} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
-              </p>
-              
-              <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: previewItem.stock > 5 ? '#2dd48b' : '#f85149' }}></div>
-                <span style={{ color: '#495057', fontWeight: '600', fontSize: '0.95rem' }}>
-                  {previewItem.stock} unidades en stock
-                </span>
-              </div>
-              
-              <button 
-                onClick={() => agregarAlCarrito(previewItem)}
-                style={{
-                  background: '#0d1117', color: '#fff', border: 'none', borderRadius: '12px',
-                  padding: '16px 24px', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer',
-                  width: '100%', transition: 'background 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'
-                }}
-              >
-                <span>Agregar al Carrito</span>
-                <span>🛍️</span>
-              </button>
+              {autenticado ? (
+                <>
+                  <div style={{ fontSize: '1.8rem', color: '#1e8a5e', fontWeight: '700', marginBottom: '24px' }}>
+                    ${(previewItem.precio || 0).toLocaleString('es-CO')}
+                  </div>
+                  
+                  <p style={{ color: '#6c757d', fontSize: '1rem', lineHeight: '1.6', marginBottom: '32px', flex: '1' }}>
+                    Producto premium de nuestra línea {previewItem.categoria} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
+                  </p>
+                  
+                  <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: previewItem.stock > 5 ? '#2dd48b' : '#f85149' }}></div>
+                    <span style={{ color: '#495057', fontWeight: '600', fontSize: '0.95rem' }}>
+                      {previewItem.stock} unidades en stock
+                    </span>
+                  </div>
+                  
+                  <button 
+                    onClick={() => agregarAlCarrito(previewItem)}
+                    style={{
+                      background: '#0d1117', color: '#fff', border: 'none', borderRadius: '12px',
+                      padding: '16px 24px', fontSize: '1.1rem', fontWeight: '600', cursor: 'pointer',
+                      width: '100%', transition: 'background 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px'
+                    }}
+                  >
+                    <span>Agregar al Carrito</span>
+                    <span>🛍️</span>
+                  </button>
+                </>
+              ) : (
+                <div style={{ marginTop: 'auto', textAlign: 'center' }}>
+                  <Link to="/login" style={{
+                    display: 'block', background: '#1168b3', color: '#fff', textDecoration: 'none',
+                    padding: '14px 24px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: '600', transition: 'background 0.2s'
+                  }}>
+                    🔑 Inicia sesión para ver precios
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

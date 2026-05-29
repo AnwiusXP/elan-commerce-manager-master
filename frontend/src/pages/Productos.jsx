@@ -7,7 +7,7 @@ function Productos() {
   const [cargando, setCargando] = useState(true)
   const [modal, setModal] = useState(false)
   const [editId, setEditId] = useState(null)
-  const [form, setForm] = useState({ nombre: '', categoria: 'cuidado hogar', precio: '', stock: '' })
+  const [form, setForm] = useState({ nombre: '', categoria: 'cuidado hogar', precio_base: '', precio_distribuidor: '', stock: '' })
   const [imagen, setImagen] = useState(null)
 
   useEffect(() => {
@@ -22,8 +22,8 @@ function Productos() {
   }
 
   async function guardar() {
-    if (!form.nombre || !form.precio || !form.stock) { alert('Completa todos los campos'); return }
-    const datos = { ...form, precio: parseInt(form.precio), stock: parseInt(form.stock), stockMin: 10 }
+    if (!form.nombre || !form.precio_base || !form.precio_distribuidor || !form.stock) { alert('Completa todos los campos'); return }
+    const datos = { ...form, precio_base: parseFloat(form.precio_base), precio_distribuidor: parseFloat(form.precio_distribuidor), stock: parseInt(form.stock), stockMin: 10 }
     if (editId !== null) {
       await editarProducto(editId, datos, imagen)
     } else {
@@ -40,7 +40,7 @@ function Productos() {
   }
 
   function abrirEditar(p) {
-    setForm({ nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock })
+    setForm({ nombre: p.nombre, categoria: p.categoria, precio_base: p.precio_base || p.precio, precio_distribuidor: p.precio_distribuidor || p.precio, stock: p.stock })
     setEditId(p.id)
     setImagen(null)
     setModal(true)
@@ -49,7 +49,7 @@ function Productos() {
   function cerrarModal() {
     setModal(false)
     setEditId(null)
-    setForm({ nombre: '', categoria: 'cuidado hogar', precio: '', stock: '' })
+    setForm({ nombre: '', categoria: 'cuidado hogar', precio_base: '', precio_distribuidor: '', stock: '' })
     setImagen(null)
   }
 
@@ -80,7 +80,7 @@ function Productos() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ background: '#21262d' }}>
                 <tr>
-                  {['Nombre', 'Categoría', 'Precio', 'Stock', 'Acciones'].map(h => (
+                  {['Nombre', 'Categoría', 'Precios', 'Stock', 'Acciones'].map(h => (
                     <th key={h} style={{ color: '#8b949e', fontSize: '0.82rem', padding: '12px 20px', textAlign: 'left', textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
@@ -90,7 +90,10 @@ function Productos() {
                   <tr key={p.id} style={{ borderBottom: '1px solid #21262d' }}>
                     <td style={{ padding: '14px 20px' }}>{p.nombre}</td>
                     <td style={{ padding: '14px 20px', color: '#8b949e' }}>{p.categoria}</td>
-                    <td style={{ padding: '14px 20px' }}>${p.precio.toLocaleString('es-CO')}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{fontSize: '0.85rem'}}>Público: ${(p.precio_base || p.precio).toLocaleString('es-CO')}</div>
+                      <div style={{fontSize: '0.85rem', color: '#8b949e'}}>Mayorista: ${(p.precio_distribuidor || p.precio).toLocaleString('es-CO')}</div>
+                    </td>
                     <td style={{ padding: '14px 20px' }}>{p.stock}</td>
                     <td style={{ padding: '14px 20px' }}>
                       <button onClick={() => abrirEditar(p)} style={{ background: 'rgba(30,138,94,0.15)', color: '#1e8a5e', border: '1px solid #1e8a5e', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', marginRight: '8px' }}>✏️ Editar</button>
@@ -108,17 +111,22 @@ function Productos() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '440px' }}>
             <h5 style={{ marginBottom: '24px', fontWeight: '700' }}>{editId !== null ? 'Editar' : 'Agregar'} Producto</h5>
-            {['nombre', 'precio', 'stock'].map(field => (
-              <div key={field} style={{ marginBottom: '16px' }}>
-                <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>{field.charAt(0).toUpperCase() + field.slice(1)}</label>
-                <input
-                  type={field === 'nombre' ? 'text' : 'number'}
-                  value={form[field]}
-                  onChange={e => setForm({ ...form, [field]: e.target.value })}
-                  style={inputStyle}
-                />
-              </div>
-            ))}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Nombre</label>
+              <input type="text" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Precio Público (Base)</label>
+              <input type="number" value={form.precio_base} onChange={e => setForm({ ...form, precio_base: e.target.value })} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Precio Mayorista (Distribuidor)</label>
+              <input type="number" value={form.precio_distribuidor} onChange={e => setForm({ ...form, precio_distribuidor: e.target.value })} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Stock</label>
+              <input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} style={inputStyle} />
+            </div>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Categoría</label>
               <select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} style={inputStyle}>

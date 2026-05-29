@@ -31,6 +31,7 @@ from auth import (
     authenticate_user,
     create_access_token,
     get_current_user,
+    get_current_user_optional,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_db,
     get_password_hash,
@@ -226,6 +227,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    rol: str
 
     class Config:
         from_attributes = True
@@ -233,6 +235,10 @@ class UserResponse(BaseModel):
 
 class UserStatusUpdate(BaseModel):
     is_active: bool
+
+
+class UserRoleUpdate(BaseModel):
+    rol: str
 
 
 # --- ENDPOINTS ---
@@ -264,7 +270,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": {"username": user.username, "email": user.email, "role": "admin"},
+        "user": {"username": user.username, "email": user.email, "role": user.rol},
     }
 
 
@@ -728,32 +734,63 @@ async def create_venta(
 # --- GESTIÓN DE PRODUCTOS ---
 
 
+def apply_price_rules(productos, current_user):
+    if not current_user:
+        for p in productos:
+            p.precio = None
+            p.precio_base = None
+            p.precio_distribuidor = None
+    elif current_user.rol == "distribuidor":
+        for p in productos:
+            p.precio = p.precio_distribuidor
+            p.precio_base = None
+    elif current_user.rol == "cliente_base":
+        for p in productos:
+            p.precio = p.precio_base
+            p.precio_distribuidor = None
+    return productos
+
+
 @app.get("/api/productos")
-async def list_productos(db: Session = Depends(get_db)):
-    return db.query(Producto).all()
+async def list_productos(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    productos = db.query(Producto).all()
+    return apply_price_rules(productos, current_user)
 
 
 @app.get("/api/catalogo")
-async def list_catalogo(db: Session = Depends(get_db)):
+async def list_catalogo(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """Obtiene los productos disponibles para la venta (stock > 0) para el frontend público"""
-    return db.query(Producto).filter(Producto.stock > 0).all()
+    productos = db.query(Producto).filter(Producto.stock > 0).all()
+    return apply_price_rules(productos, current_user)
 
 
 @app.post("/api/productos", status_code=201)
 async def create_producto(
     nombre: str = Form(...),
     categoria: str = Form(...),
-    precio: float = Form(...),
+    precio_base: float = Form(...),
+    precio_distribuidor: float = Form(...),
     stock: int = Form(...),
     stockMin: int = Form(...),
     imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
     nuevo = Producto(
         nombre=nombre,
         categoria=categoria,
-        precio=precio,
+        precio=precio_base,
+        precio_base=precio_base,
+        precio_distribuidor=precio_distribuidor,
         stock=stock,
         stockMin=stockMin,
     )
@@ -777,19 +814,24 @@ async def update_producto(
     producto_id: int,
     nombre: str = Form(...),
     categoria: str = Form(...),
-    precio: float = Form(...),
+    precio_base: float = Form(...),
+    precio_distribuidor: float = Form(...),
     stock: int = Form(...),
     stockMin: int = Form(...),
     imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     p.nombre = nombre
     p.categoria = categoria
-    p.precio = precio
+    p.precio = precio_base
+    p.precio_base = precio_base
+    p.precio_distribuidor = precio_distribuidor
     p.stock = stock
     p.stockMin = stockMin
 
@@ -936,6 +978,26 @@ async def update_user_status(
         "email": user.email,
         "is_active": user.is_active,
     }
+
+
+@app.put("/api/users/{user_id}/rol")
+async def update_user_role(
+    user_id: int,
+    req: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    if req.rol not in ["admin", "cliente_base", "distribuidor"]:
+        raise HTTPException(status_code=400, detail="Rol inválido.")
+    user.rol = req.rol
+    db.commit()
+    db.refresh(user)
+    return {"status": "success", "user": {"id": user.id, "username": user.username, "rol": user.rol}}
 
 
 # ========================================================================
