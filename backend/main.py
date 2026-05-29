@@ -30,7 +30,7 @@ from models import (
 from auth import (
     authenticate_user,
     create_access_token,
-    get_current_user,
+    get_current_admin_user,
     get_current_user_optional,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_db,
@@ -430,7 +430,7 @@ async def activate_account(token: str, db: Session = Depends(get_db)):
 
 @app.get("/api/ventas")
 async def get_ventas(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """Obtiene el historial de ventas activas (APROBADA) para alimentar Dashboard y XGBoost.
     Las ventas RECHAZADA, REEMBOLSADA o CANCELADA se excluyen de métricas."""
@@ -637,7 +637,7 @@ async def checkout(req: CheckoutRequest, db: Session = Depends(get_db)):
 async def create_venta(
     venta: VentaRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """Registra venta, valida stock y descuenta inventario de forma transaccional"""
     try:
@@ -780,7 +780,7 @@ async def create_producto(
     stockMin: int = Form(...),
     imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
@@ -820,7 +820,7 @@ async def update_producto(
     stockMin: int = Form(...),
     imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
@@ -852,7 +852,7 @@ async def update_producto(
 async def delete_producto(
     producto_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
@@ -873,7 +873,7 @@ async def delete_producto(
 
 @app.get("/api/users", response_model=List[UserResponse])
 async def list_users(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     return db.query(User).all()
 
@@ -938,7 +938,7 @@ async def create_user(
 
 @app.delete("/api/users/{user_id}")
 async def delete_user(
-    user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -961,7 +961,7 @@ async def update_user_status(
     user_id: int,
     status_update: UserStatusUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """Actualiza el estado is_active de un usuario (toggle)."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -985,7 +985,7 @@ async def update_user_role(
     user_id: int,
     req: UserRoleUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado.")
@@ -1007,7 +1007,7 @@ async def update_user_role(
 
 @app.get("/api/inventario/resumen")
 async def inventario_resumen(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """
     Dashboard KPIs: valor total de inventario, alertas de stock bajo,
@@ -1075,7 +1075,7 @@ async def inventario_resumen(
 
 @app.get("/api/inventario/productos")
 async def inventario_productos(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """
     Tabla principal de inventario con métricas de rotación calculadas.
@@ -1172,7 +1172,7 @@ async def inventario_productos(
 async def inventario_movimientos(
     producto_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Trazabilidad: Historial completo de movimientos de un producto.
@@ -1216,7 +1216,7 @@ async def inventario_movimientos(
 async def inventario_ajuste(
     ajuste: AjusteInventarioRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Registrar un ajuste manual de inventario: compra de stock, merma, devolución.
@@ -1272,7 +1272,7 @@ async def inventario_ajuste(
 async def procesar_reembolso(
     req: ReembolsoRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Procesa un reembolso en una ÚNICA transacción ACID:
@@ -1402,7 +1402,7 @@ async def procesar_reembolso(
 
 @app.get("/api/ventas/historial")
 async def get_ventas_historial(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """Historial completo de ventas incluyendo todos los estados (para admin)."""
     ventas = db.query(Venta).order_by(Venta.fecha.desc()).limit(200).all()
@@ -1424,7 +1424,7 @@ async def get_ventas_historial(
 
 @app.get("/api/inventario/alertas")
 async def inventario_alertas(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """
     Lista de productos que requieren acción inmediata: stock bajo o sin stock.
@@ -1610,7 +1610,7 @@ async def rastrear_pedido(guia: str, db: Session = Depends(get_db)):
 async def listar_pedidos(
     estado: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """Lista todos los pedidos con filtro opcional por estado."""
     query = db.query(Pedido)
@@ -1652,7 +1652,7 @@ async def listar_pedidos(
 async def aprobar_pedido(
     pedido_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Aprueba un pedido PENDIENTE_NEQUI:
@@ -1756,7 +1756,7 @@ async def actualizar_estado_pedido(
     pedido_id: int,
     req: ActualizarEstadoPedidoRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Actualiza el estado de un pedido (DESPACHADO, ENTREGADO, CANCELADO).

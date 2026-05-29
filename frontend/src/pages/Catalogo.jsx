@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import api from '../services/api'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
-import { estaAutenticado, obtenerRol } from '../services/authService'
+import { estaAutenticado } from '../services/authService'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
@@ -79,12 +79,6 @@ function Catalogo() {
         color: 'var(--color-text-main)', textAlign: 'center', padding: '70px 32px',
         borderBottom: '1px solid var(--color-border)'
       }}>
-        <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '12px', letterSpacing: '-0.5px' }}>
-          Hogares limpios, aromas puros
-        </h2>
-        <p style={{ color: 'var(--color-text-muted)', marginBottom: '32px', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto 32px' }}>
-          Línea premium de jabones lavavajillas, detergentes biodegradables y aromatizantes ambientales de alta concentración. Cuidado excepcional para tu hogar.
-        </p>
         <a href="#productos" style={{
           background: 'var(--color-brand-primary)', color: '#fff', borderRadius: '30px',
           padding: '14px 36px', fontWeight: '600', textDecoration: 'none',

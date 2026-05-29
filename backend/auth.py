@@ -80,6 +80,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise credentials_exception
     return user
 
+def get_current_admin_user(current_user: User = Depends(get_current_user)):
+    if current_user.rol != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado",
+        )
+    return current_user
+
 def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)):
     if not credentials:
         return None

@@ -7,7 +7,7 @@ export const login = async (usuario, contrasena) => {
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
     }
-    return { ok: true }
+    return { ok: true, user: res.data.user, role: res.data.user?.role }
   } catch (error) {
     return { ok: false, mensaje: error?.response?.data?.message || 'Usuario o contraseña incorrectos.' }
   }

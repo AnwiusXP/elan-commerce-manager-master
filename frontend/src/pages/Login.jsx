@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login, forgotPassword, verifyOTP, resetPassword } from '../services/authService'
+import { login, forgotPassword, verifyOTP, resetPassword, logout, obtenerRol } from '../services/authService'
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -48,8 +48,17 @@ function Login() {
     setCargando(true)
     const res = await login(username, password)
     setCargando(false)
-    if (res.ok) navigate('/dashboard')
-    else setError('Credenciales incorrectas.')
+    if (res.ok) {
+      const role = res.role || obtenerRol()
+      if (role === 'admin') {
+        navigate('/dashboard')
+      } else if (role === 'cliente_base' || role === 'distribuidor') {
+        navigate('/')
+      } else {
+        await logout()
+        setError('No se pudo determinar el rol del usuario.')
+      }
+    } else setError('Credenciales incorrectas.')
   }
 
   async function handleForgot() {

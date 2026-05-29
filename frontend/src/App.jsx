@@ -34,13 +34,13 @@ function App() {
         <Route path="/activate/*" element={<ActivationPage />} />
 
         {/* Rutas protegidas — solo si está autenticado */}
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/productos" element={<PrivateRoute><Productos /></PrivateRoute>} />
-        <Route path="/ventas" element={<PrivateRoute><Ventas /></PrivateRoute>} />
-        <Route path="/pedidos" element={<PrivateRoute><Pedidos /></PrivateRoute>} />
-        <Route path="/inventario" element={<PrivateRoute><Inventario /></PrivateRoute>} />
-        <Route path="/reportes" element={<PrivateRoute><Reportes /></PrivateRoute>} />
-        <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin']}><Dashboard /></PrivateRoute>} />
+        <Route path="/productos" element={<PrivateRoute allowedRoles={['admin']}><Productos /></PrivateRoute>} />
+        <Route path="/ventas" element={<PrivateRoute allowedRoles={['admin']}><Ventas /></PrivateRoute>} />
+        <Route path="/pedidos" element={<PrivateRoute allowedRoles={['admin']}><Pedidos /></PrivateRoute>} />
+        <Route path="/inventario" element={<PrivateRoute allowedRoles={['admin']}><Inventario /></PrivateRoute>} />
+        <Route path="/reportes" element={<PrivateRoute allowedRoles={['admin']}><Reportes /></PrivateRoute>} />
+        <Route path="/usuarios" element={<PrivateRoute allowedRoles={['admin']}><Usuarios /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )
