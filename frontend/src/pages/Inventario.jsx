@@ -259,7 +259,7 @@ function Inventario() {
                       return (
                         <tr key={p.id}>
                           <td style={{ fontWeight: 600 }}>{p.nombre}</td>
-                          <td className="muted">{p.categoria}</td>
+                          <td className="muted">{p.categoria || '—'}</td>
                           <td style={{
                             fontWeight: 600,
                             color: p.stock === 0 ? '#f85149' : p.stock <= p.stockMin ? '#e3b341' : '#e6edf3'

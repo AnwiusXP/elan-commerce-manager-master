@@ -26,18 +26,31 @@ class PasswordResetToken(Base):
     token = Column(String, index=True)
     expires_at = Column(DateTime)
 
+class Categoria(Base):
+    __tablename__ = "categorias"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, unique=True, index=True, nullable=False)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    descripcion = Column(Text, nullable=True)
+
+    productos = relationship("Producto", back_populates="categoria_rel")
+
+
 class Producto(Base):
     __tablename__ = "productos"
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, index=True)
-    categoria = Column(String)
+    categoria = Column(String)  # deprecated — se mantiene por compatibilidad
+    categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=False, index=True)
     precio = Column(Float)
     precio_base = Column(Float, default=0.0, nullable=False)
     precio_distribuidor = Column(Float, default=0.0, nullable=False)
     stock = Column(Integer)
     stockMin = Column(Integer)
 
+    categoria_rel = relationship("Categoria", back_populates="productos")
     movimientos = relationship("MovimientoInventario", back_populates="producto")
     venta_items = relationship("VentaItem", back_populates="producto")
 

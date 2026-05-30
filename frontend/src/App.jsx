@@ -18,6 +18,7 @@ import Register from './pages/Register'
 import ActivationPage from './pages/ActivationPage'
 import Pedidos from './pages/Pedidos'
 import MisPedidos from './pages/MisPedidos'
+import Categorias from './pages/Categorias'
 
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
         <Route path="/inventario" element={<PrivateRoute allowedRoles={['admin']}><Inventario /></PrivateRoute>} />
         <Route path="/reportes" element={<PrivateRoute allowedRoles={['admin']}><Reportes /></PrivateRoute>} />
         <Route path="/usuarios" element={<PrivateRoute allowedRoles={['admin']}><Usuarios /></PrivateRoute>} />
+        <Route path="/categorias" element={<PrivateRoute allowedRoles={['admin']}><Categorias /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

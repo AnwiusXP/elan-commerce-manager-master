@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from sqlalchemy.orm import Session
-from sqlalchemy import func as sql_func, text as sql_text
+from sqlalchemy import func as sql_func, text
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -19,6 +19,7 @@ import uuid
 from database import engine, Base
 from models import (
     Producto,
+    Categoria,
     Venta,
     VentaItem,
     MovimientoInventario,
@@ -43,9 +44,27 @@ from datetime import timedelta
 import random
 import string
 from email_utils import send_reset_email, send_activation_email
+from enum import Enum
 
 # Importación válida del router modular
 from api.ia.predict import predict_router
+
+
+class CategoriaOficial(Enum):
+    AMBIENTACION           = ("Ambientación",           "ambientacion")
+    LIMPIEZA_HOGAR         = ("Limpieza del Hogar",     "limpieza_hogar")
+    PISOS_SUPERFICIES      = ("Pisos y Superficies",    "pisos_superficies")
+    LAVADO_ROPA            = ("Lavado de Ropa",         "lavado_ropa")
+    HIGIENE_PERSONAL       = ("Higiene Personal",       "higiene_personal")
+    SOLVENTES_INDUSTRIALES = ("Solventes e Industriales","solventes_industriales")
+
+    @property
+    def nombre(self): return self.value[0]
+    @property
+    def slug(self):   return self.value[1]
+
+
+SLUGS_OFICIALES = {m.slug for m in CategoriaOficial}
 
 app = FastAPI(title="Elan Commerce Manager - Microservicio IA")
 
@@ -134,12 +153,34 @@ class LoginRequest(BaseModel):
     contrasena: str
 
 
+class CategoriaBase(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+
+
+class CategoriaResponse(CategoriaBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
 class ProductoBase(BaseModel):
     nombre: str
-    categoria: str
+    categoria_id: int
     precio: float
     stock: int
     stockMin: int
+
+
+def _validar_categoria_oficial(categoria_id: int, db: Session) -> Categoria:
+    cat = db.query(Categoria).filter(Categoria.id == categoria_id).first()
+    if not cat or cat.slug not in SLUGS_OFICIALES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Slug no válido. Esperados: {', '.join(sorted(SLUGS_OFICIALES))}"
+        )
+    return cat
 
 
 class VentaItemRequest(BaseModel):
@@ -773,27 +814,40 @@ def apply_price_rules(productos, current_user):
 
 @app.get("/api/productos")
 async def list_productos(
+    categoria: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    productos = db.query(Producto).all()
+    query = db.query(Producto)
+    if categoria:
+        slug_normalizado = categoria.strip().lower()
+        query = query.join(Producto.categoria_rel).filter(Categoria.slug == slug_normalizado)
+    productos = query.all()
     return apply_price_rules(productos, current_user)
 
 
 @app.get("/api/catalogo")
 async def list_catalogo(
+    categoria_id: Optional[int] = None,
+    categoria: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    """Obtiene los productos disponibles para la venta (stock > 0) para el frontend público"""
-    productos = db.query(Producto).filter(Producto.stock > 0).all()
+    """Obtiene los productos disponibles para la venta (stock > 0) para el frontend público.
+    Opcionalmente filtra por categoria_id o por slug de categoría."""
+    query = db.query(Producto).filter(Producto.stock > 0)
+    if categoria_id is not None:
+        query = query.filter(Producto.categoria_id == categoria_id)
+    if categoria:
+        query = query.join(Producto.categoria_rel).filter(Categoria.slug == categoria.strip().lower())
+    productos = query.all()
     return apply_price_rules(productos, current_user)
 
 
 @app.post("/api/productos", status_code=201)
 async def create_producto(
     nombre: str = Form(...),
-    categoria: str = Form(...),
+    categoria_id: int = Form(...),
     precio_base: float = Form(...),
     precio_distribuidor: float = Form(...),
     stock: int = Form(...),
@@ -805,9 +859,12 @@ async def create_producto(
     if current_user.rol != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
 
+    cat = _validar_categoria_oficial(categoria_id, db)
+
     nuevo = Producto(
         nombre=nombre,
-        categoria=categoria,
+        categoria=cat.nombre,
+        categoria_id=categoria_id,
         precio=precio_base,
         precio_base=precio_base,
         precio_distribuidor=precio_distribuidor,
@@ -833,7 +890,7 @@ async def create_producto(
 async def update_producto(
     producto_id: int,
     nombre: str = Form(...),
-    categoria: str = Form(...),
+    categoria_id: int = Form(...),
     precio_base: float = Form(...),
     precio_distribuidor: float = Form(...),
     stock: int = Form(...),
@@ -847,8 +904,12 @@ async def update_producto(
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    cat = _validar_categoria_oficial(categoria_id, db)
+
     p.nombre = nombre
-    p.categoria = categoria
+    p.categoria = cat.nombre
+    p.categoria_id = categoria_id
     p.precio = precio_base
     p.precio_base = precio_base
     p.precio_distribuidor = precio_distribuidor
@@ -886,6 +947,158 @@ async def delete_producto(
 
     db.delete(p)
     db.commit()
+
+
+# --- GESTIÓN DE CATEGORÍAS ---
+
+
+@app.get("/api/categorias")
+async def list_categorias(db: Session = Depends(get_db)):
+    return db.query(Categoria).order_by(Categoria.nombre).all()
+
+
+@app.post("/api/categorias", status_code=201)
+async def create_categoria(
+    cat: CategoriaBase,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    existente = db.query(Categoria).filter(Categoria.nombre == cat.nombre).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Ya existe una categoría con ese nombre.")
+    nueva = Categoria(nombre=cat.nombre, descripcion=cat.descripcion)
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.put("/api/categorias/{categoria_id}")
+async def update_categoria(
+    categoria_id: int,
+    cat: CategoriaBase,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    c = db.query(Categoria).filter(Categoria.id == categoria_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+    duplicado = db.query(Categoria).filter(Categoria.nombre == cat.nombre, Categoria.id != categoria_id).first()
+    if duplicado:
+        raise HTTPException(status_code=400, detail="Ya existe otra categoría con ese nombre.")
+    c.nombre = cat.nombre
+    c.descripcion = cat.descripcion
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@app.delete("/api/categorias/{categoria_id}", status_code=204)
+async def delete_categoria(
+    categoria_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    c = db.query(Categoria).filter(Categoria.id == categoria_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+    productos_asociados = db.query(Producto).filter(Producto.categoria_id == categoria_id).count()
+    if productos_asociados > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"No se puede eliminar: {productos_asociados} producto(s) usan esta categoría."
+        )
+    db.delete(c)
+    db.commit()
+
+
+@app.post("/api/categorias/seed-oficiales", status_code=201)
+async def seed_categorias_oficiales(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    # ── Paso 0: Asegurar columna slug + poblar registros legacy ──
+    with db.bind.connect() as conn:
+        result = conn.execute(
+            text("SELECT column_name FROM information_schema.columns "
+                 "WHERE table_name='categorias' AND column_name='slug'")
+        )
+        if not result.fetchone():
+            conn.execute(text("ALTER TABLE categorias ADD COLUMN slug VARCHAR"))
+
+        # Actualizar categorías legacy con LOWER() para case-insensitive
+        conn.execute(text("UPDATE categorias SET slug = 'sin-categoria'     WHERE LOWER(nombre) = 'sin categoria'"))
+        conn.execute(text("UPDATE categorias SET slug = 'limpieza-hogar'    WHERE LOWER(nombre) = 'cuidado hogar'"))
+        conn.execute(text("UPDATE categorias SET slug = 'higiene-personal'  WHERE LOWER(nombre) = 'cuidado personal'"))
+        # Fallback de seguridad para cualquier otro registro inesperado
+        conn.execute(text("UPDATE categorias SET slug = 'legacy_' || id WHERE slug IS NULL"))
+
+        conn.execute(text("ALTER TABLE categorias ALTER COLUMN slug SET NOT NULL"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_categorias_slug ON categorias (slug)"))
+        conn.commit()
+
+    # ── Paso 1: Mapeo de legacy_slug → slug oficial (¡Blindado contra Mayúsculas!) ──
+    MAPEO_LEGACY = {
+        "limpieza-hogar":   "limpieza_hogar",
+        "higiene-personal": "higiene_personal",
+        "sin-categoria":    "limpieza_hogar",
+    }
+
+    # ── Paso 2: Crear o actualizar cada categoría oficial ──
+    creadas, actualizadas = [], []
+    for miembro in CategoriaOficial:
+        cat = (
+            db.query(Categoria)
+            .filter((Categoria.slug == miembro.slug) | (Categoria.nombre == miembro.nombre))
+            .first()
+        )
+        if cat:
+            if cat.slug != miembro.slug or cat.nombre != miembro.nombre:
+                cat.nombre = miembro.nombre
+                cat.slug   = miembro.slug
+                actualizadas.append(miembro.nombre)
+        else:
+            db.add(Categoria(nombre=miembro.nombre, slug=miembro.slug))
+            creadas.append(miembro.nombre)
+    db.flush()
+
+    # ── Paso 3: Migrar productos de categorías legacy → oficiales usando slug temporal ──
+    cats_oficiales = {c.slug: c.id for c in db.query(Categoria).all()}
+    slug_a_nombre_oficial = {m.slug: m.nombre for m in CategoriaOficial}
+
+    for legacy_slug, target_slug in MAPEO_LEGACY.items():
+        legacy_cat = db.query(Categoria).filter(Categoria.slug == legacy_slug).first()
+        if not legacy_cat:
+            continue
+
+        target_id = cats_oficiales.get(target_slug)
+        nombre_oficial = slug_a_nombre_oficial.get(target_slug)
+        if not target_id or not nombre_oficial:
+            continue
+
+        afectados = (
+            db.query(Producto)
+            .filter(Producto.categoria_id == legacy_cat.id)
+            .update({
+                "categoria_id": target_id,
+                "categoria": nombre_oficial,
+            })
+        )
+        if afectados > 0:
+            print(f"  Migrados {afectados} productos de slug legacy '{legacy_slug}' -> '{target_slug}'")
+
+    # ── Paso 4: Eliminar categorías legacy huérfanas de forma segura ──
+    legacy_rows = db.query(Categoria).filter(~Categoria.slug.in_(SLUGS_OFICIALES)).all()
+    for row in legacy_rows:
+        count = db.query(Producto).filter(Producto.categoria_id == row.id).count()
+        if count == 0:
+            db.delete(row)
+            print(f"  Eliminada legacy huérfana: '{row.nombre}' (slug={row.slug})")
+        else:
+            print(f"  [WARN] '{row.nombre}' aún tiene {count} productos — no se elimina")
+
+    db.commit()
+    return {"status": "ok", "creadas": creadas, "actualizadas": actualizadas, "total": len(CategoriaOficial)}
 
 
 # --- GESTION DE USUARIOS (ADMIN) ---
@@ -946,7 +1159,7 @@ async def create_user(
     except IntegrityError:
         db.rollback()
         db.execute(
-            sql_text(
+            text(
                 "SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE(MAX(id), 1)) FROM users"
             )
         )
@@ -1162,7 +1375,7 @@ async def inventario_productos(
             {
                 "id": p.id,
                 "nombre": p.nombre,
-                "categoria": p.categoria,
+                "categoria": p.categoria_rel.nombre if p.categoria_rel else p.categoria,
                 "precio": p.precio,
                 "stock": p.stock if p.stock is not None else 0,
                 "stockMin": p.stockMin if p.stockMin is not None else 0,
@@ -1453,7 +1666,7 @@ async def inventario_alertas(
             {
                 "id": p.id,
                 "nombre": p.nombre,
-                "categoria": p.categoria,
+                "categoria": p.categoria_rel.nombre if p.categoria_rel else p.categoria,
                 "stock": p.stock,
                 "stockMin": p.stockMin,
                 "severidad": severidad,

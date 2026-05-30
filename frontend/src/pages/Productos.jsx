@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getProductos, crearProducto, editarProducto, eliminarProducto } from '../services/productoService'
+import { getCategorias } from '../services/categoriaService'
 
 function Productos() {
   const [productos, setProductos] = useState([])
+  const [categorias, setCategorias] = useState([])
   const [cargando, setCargando] = useState(true)
   const [modal, setModal] = useState(false)
   const [editId, setEditId] = useState(null)
-  const [form, setForm] = useState({ nombre: '', categoria: 'cuidado hogar', precio_base: '', precio_distribuidor: '', stock: '' })
+  const [form, setForm] = useState({ nombre: '', categoria_id: '', precio_base: '', precio_distribuidor: '', stock: '' })
   const [imagen, setImagen] = useState(null)
 
   useEffect(() => {
     cargarProductos()
+    cargarCategorias()
   }, [])
 
   async function cargarProductos() {
@@ -21,9 +24,21 @@ function Productos() {
     setCargando(false)
   }
 
+  async function cargarCategorias() {
+    try {
+      const data = await getCategorias()
+      setCategorias(data)
+      if (data.length > 0 && !form.categoria_id) {
+        setForm(prev => ({ ...prev, categoria_id: data[0].id }))
+      }
+    } catch (e) {
+      console.error('Error cargando categorías:', e)
+    }
+  }
+
   async function guardar() {
-    if (!form.nombre || !form.precio_base || !form.precio_distribuidor || !form.stock) { alert('Completa todos los campos'); return }
-    const datos = { ...form, precio_base: parseFloat(form.precio_base), precio_distribuidor: parseFloat(form.precio_distribuidor), stock: parseInt(form.stock), stockMin: 10 }
+    if (!form.nombre || !form.precio_base || !form.precio_distribuidor || !form.stock || !form.categoria_id) { alert('Completa todos los campos'); return }
+    const datos = { ...form, categoria_id: Number(form.categoria_id), precio_base: parseFloat(form.precio_base), precio_distribuidor: parseFloat(form.precio_distribuidor), stock: parseInt(form.stock), stockMin: 10 }
     if (editId !== null) {
       await editarProducto(editId, datos, imagen)
     } else {
@@ -40,7 +55,7 @@ function Productos() {
   }
 
   function abrirEditar(p) {
-    setForm({ nombre: p.nombre, categoria: p.categoria, precio_base: p.precio_base || p.precio, precio_distribuidor: p.precio_distribuidor || p.precio, stock: p.stock })
+    setForm({ nombre: p.nombre, categoria_id: p.categoria_id || (categorias.length > 0 ? categorias[0].id : ''), precio_base: p.precio_base || p.precio, precio_distribuidor: p.precio_distribuidor || p.precio, stock: p.stock })
     setEditId(p.id)
     setImagen(null)
     setModal(true)
@@ -49,7 +64,7 @@ function Productos() {
   function cerrarModal() {
     setModal(false)
     setEditId(null)
-    setForm({ nombre: '', categoria: 'cuidado hogar', precio_base: '', precio_distribuidor: '', stock: '' })
+    setForm({ nombre: '', categoria_id: categorias.length > 0 ? categorias[0].id : '', precio_base: '', precio_distribuidor: '', stock: '' })
     setImagen(null)
   }
 
@@ -89,7 +104,7 @@ function Productos() {
                 {productos.map((p) => (
                   <tr key={p.id} style={{ borderBottom: '1px solid #21262d' }}>
                     <td style={{ padding: '14px 20px' }}>{p.nombre}</td>
-                    <td style={{ padding: '14px 20px', color: '#8b949e' }}>{p.categoria}</td>
+                    <td style={{ padding: '14px 20px', color: '#8b949e' }}>{p.categoria || '—'}</td>
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{fontSize: '0.85rem'}}>Público: ${(p.precio_base || p.precio).toLocaleString('es-CO')}</div>
                       <div style={{fontSize: '0.85rem', color: '#8b949e'}}>Mayorista: ${(p.precio_distribuidor || p.precio).toLocaleString('es-CO')}</div>
@@ -129,10 +144,11 @@ function Productos() {
             </div>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Categoría</label>
-              <select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} style={inputStyle}>
-                <option>cuidado hogar</option>
-                <option>cuidado personal</option>
-                <option>cuidado facial</option>
+              <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} style={inputStyle}>
+                {categorias.length === 0 && <option value="">Sin categorías</option>}
+                {categorias.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                ))}
               </select>
             </div>
             <div style={{ marginBottom: '16px' }}>

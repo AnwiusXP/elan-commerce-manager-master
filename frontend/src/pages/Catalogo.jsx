@@ -3,9 +3,12 @@ import api from '../services/api'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
 import { estaAutenticado, obtenerUsuario, logout } from '../services/authService'
+import { getCategorias } from '../services/categoriaService'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
+  const [categorias, setCategorias] = useState([])
+  const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [carrito, setCarrito] = useState([])
@@ -17,28 +20,41 @@ function Catalogo() {
 
   useEffect(() => {
     cargarCatalogo()
+    cargarCategorias()
     const c = JSON.parse(localStorage.getItem('carrito')) || []
     setCarrito(c)
   }, [])
 
+  async function cargarCategorias() {
+    try {
+      const data = await getCategorias()
+      setCategorias(data)
+    } catch (e) {
+      console.error('Error cargando categorías:', e)
+    }
+  }
+
   async function cargarCatalogo() {
     setCargando(true)
     try {
-      // Consume the public endpoint that only returns products with stock > 0
       const res = await api.get('/api/catalogo')
-      setProductos(res.data)
+      const normalizados = (res.data || []).map(p => ({
+        ...p,
+        categoria_id: p.categoria_id || null,
+        categoria: p.categoria || 'Sin categoría'
+      }))
+      setProductos(normalizados)
     } catch (error) {
       console.error('Error cargando el catálogo:', error)
-      // Fallback in case of backend failure
       setProductos([])
     }
     setCargando(false)
   }
 
-  const filtrados = productos.filter(p =>
-    (p?.nombre || "").toLowerCase().includes((busqueda || "").toLowerCase()) || 
-    (p?.categoria || "").toLowerCase().includes((busqueda || "").toLowerCase())
-  )
+  const filtrados = productos.filter(p => {
+    if (categoriaActiva && p.categoria_id !== categoriaActiva) return false
+    return (p?.nombre || "").toLowerCase().includes((busqueda || "").toLowerCase())
+  })
 
   const totalCarrito = carrito.reduce((a, it) => a + it.cantidad, 0)
 
@@ -91,8 +107,41 @@ function Catalogo() {
         </a>
       </div>
 
+      {/* Filtro por Categorías */}
+      <div style={{ padding: '24px 32px 0', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setCategoriaActiva(null)}
+            style={{
+              background: !categoriaActiva ? 'var(--color-brand-primary)' : '#f3f4f6',
+              color: !categoriaActiva ? '#fff' : '#4b5563',
+              border: 'none', borderRadius: '999px', padding: '8px 18px',
+              fontSize: '0.88rem', fontWeight: '600', cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            Todas
+          </button>
+          {categorias.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setCategoriaActiva(cat.id)}
+              style={{
+                background: categoriaActiva === cat.id ? 'var(--color-brand-primary)' : '#f3f4f6',
+                color: categoriaActiva === cat.id ? '#fff' : '#4b5563',
+                border: 'none', borderRadius: '999px', padding: '8px 18px',
+                fontSize: '0.88rem', fontWeight: '600', cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {cat.nombre}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Productos */}
-      <div style={{ padding: '56px 32px', maxWidth: '1200px', margin: '0 auto' }} id="productos">
+      <div style={{ padding: '32px 32px 56px', maxWidth: '1200px', margin: '0 auto' }} id="productos">
         <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0d1117', marginBottom: '32px' }}>
           Lo más vendido
         </h3>
@@ -103,7 +152,7 @@ function Catalogo() {
           </div>
         ) : filtrados.length === 0 ? (
           <div style={{ color: '#6c757d', textAlign: 'center', padding: '60px', fontSize: '1.1rem', background: '#fff', borderRadius: '16px', border: '1px solid #e1e4e8' }}>
-            No se encontraron productos disponibles con ese nombre.
+            No se encontraron productos disponibles.{categoriaActiva ? ' Intenta con otra categoría.' : ''}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
@@ -139,7 +188,7 @@ function Catalogo() {
                 <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ color: '#6c757d', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                      {p.categoria}
+                      {(p?.categoria) || 'Sin categoría'}
                     </div>
                     <div style={{ fontWeight: '700', color: '#212529', fontSize: '1.1rem', marginBottom: '12px', lineHeight: '1.3' }}>
                       {p.nombre}
@@ -202,7 +251,7 @@ function Catalogo() {
             <div style={{ flex: '1', padding: '48px 40px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <span style={{ color: 'var(--color-brand-primary)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {previewItem.categoria}
+                  {(previewItem?.categoria) || 'Sin categoría'}
                 </span>
                 <button 
                   onClick={() => setPreviewItem(null)}
@@ -223,7 +272,7 @@ function Catalogo() {
                   </div>
                   
                   <p style={{ color: '#6c757d', fontSize: '1rem', lineHeight: '1.6', marginBottom: '32px', flex: '1' }}>
-                    Producto premium de nuestra línea {previewItem.categoria} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
+                    Producto premium de nuestra línea {(previewItem?.categoria) || 'Sin categoría'} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
                   </p>
                   
                   <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -247,7 +296,7 @@ function Catalogo() {
                 </>
               ) : (
                 <p style={{ color: '#6c757d', fontSize: '1rem', lineHeight: '1.6', marginBottom: '32px', flex: '1', marginTop: 'auto', display: 'flex', alignItems: 'flex-end' }}>
-                  Producto premium de nuestra línea {previewItem.categoria} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
+                  Producto premium de nuestra línea {(previewItem?.categoria) || 'Sin categoría'} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
                 </p>
               )}
             </div>

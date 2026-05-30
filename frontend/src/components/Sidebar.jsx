@@ -30,6 +30,7 @@ function Sidebar({ active }) {
           { path: '/pedidos', label: 'Pedidos' },
           { path: '/inventario', label: 'Inventario' },
           { path: '/reportes', label: 'Reportes' },
+          { path: '/categorias', label: 'Categorías' },
           { path: '/usuarios', label: 'Usuarios' },
         ].map(item => (
           <Link key={item.path} to={item.path} style={{
