@@ -30,6 +30,7 @@ from models import (
 from auth import (
     authenticate_user,
     create_access_token,
+    get_current_user,
     get_current_admin_user,
     get_current_user_optional,
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -51,14 +52,14 @@ app = FastAPI(title="Elan Commerce Manager - Microservicio IA")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    print(f"🔥 ERROR 422 - Validación fallida en la ruta: {request.url.path}")
-    print("🔥 Cuerpo recibido:")
+    print(f"[VALIDATION] ERROR 422 - Validacion fallida en la ruta: {request.url.path}")
+    print("[VALIDATION] Cuerpo recibido:")
     try:
         body = await request.json()
         print(json.dumps(body, indent=2))
     except Exception:
         print("No se pudo leer el cuerpo (probablemente no sea JSON).")
-    print("🔥 Detalle del error de validación (Pydantic):")
+    print("[VALIDATION] Detalle del error de validacion (Pydantic):")
     print(json.dumps(exc.errors(), indent=2))
     return JSONResponse(
         status_code=422,
@@ -70,7 +71,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 Base.metadata.create_all(bind=engine)
 
 # 2. Configuración de CORS Dinámica (Local + Producción)
-# Orígenes locales explícitos para desarrollo
+# Orígenes locales explícitos para desarrollo (los navegadores jamás envían 0.0.0.0 como Origin)
 LOCAL_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
@@ -78,20 +79,32 @@ LOCAL_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# Leer FRONTEND_URL desde variable de entorno (Render injecta esta variable)
+# Leer FRONTEND_URL desde variable de entorno (Render inyecta esta variable)
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 
-# Construir lista de orígenes: locales + producción (si está configurada)
+# Orígenes extra dinámicos (IP local, Ngrok, etc.) desde variable de entorno
+# Formato: EXTRA_ORIGINS=http://192.168.1.10:5173,https://xxxx.ngrok.io
+EXTRA_ORIGINS_RAW = os.getenv("EXTRA_ORIGINS", "")
+EXTRA_ORIGINS = []
+if EXTRA_ORIGINS_RAW:
+    EXTRA_ORIGINS = [origin.strip() for origin in EXTRA_ORIGINS_RAW.split(",") if origin.strip()]
+
+# Construir lista de orígenes: locales + extra + producción (si está configurada)
 origins = LOCAL_ORIGINS.copy()
 if FRONTEND_URL:
     origins.append(FRONTEND_URL)
+origins.extend(EXTRA_ORIGINS)
 
 # Fallback para producción de Render (URL hardcodeada como respaldo)
 PRODUCTION_ORIGIN = "https://elan-commerce-manager-master-1.onrender.com"
 if PRODUCTION_ORIGIN not in origins:
     origins.append(PRODUCTION_ORIGIN)
 
-print(f" 🌐 CORS configurado para: {origins}")
+# Eliminar duplicados preservando orden
+seen = set()
+origins = [o for o in origins if not (o in seen or seen.add(o))]
+
+print(f" [CORS] Configurado para: {origins}")
 
 # 1. Configuración de CORS antes de montar rutas
 app.add_middleware(
@@ -220,6 +233,16 @@ class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
+    rol: str = "cliente_base"
+
+
+class UserUpdate(BaseModel):
+    """Esquema genérico de actualización.
+    Nótese que el campo 'rol' está deliberadamente OMITIDO.
+    El rol se asigna ÚNICAMENTE en la creación y es 100% inmutable después."""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
 
 
 class UserResponse(BaseModel):
@@ -235,10 +258,6 @@ class UserResponse(BaseModel):
 
 class UserStatusUpdate(BaseModel):
     is_active: bool
-
-
-class UserRoleUpdate(BaseModel):
-    rol: str
 
 
 # --- ENDPOINTS ---
@@ -265,12 +284,13 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "user_id": user.id, "rol": user.rol},
+        expires_delta=access_token_expires
     )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": {"username": user.username, "email": user.email, "role": user.rol},
+        "user": {"id": user.id, "username": user.username, "email": user.email, "role": user.rol},
     }
 
 
@@ -893,6 +913,14 @@ async def create_user(
             detail="El username debe ser alfanumerico (3-30 caracteres, sin espacios).",
         )
 
+    # Validar que el rol sea uno de los permitidos
+    ROLES_VALIDOS = ["admin", "cliente_base", "distribuidor"]
+    if user.rol not in ROLES_VALIDOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Rol invalido. Debe ser uno de: {', '.join(ROLES_VALIDOS)}",
+        )
+
     # Verificar duplicados
     if get_user_by_username(db, user.username):
         raise HTTPException(status_code=400, detail="El username ya esta registrado.")
@@ -907,6 +935,7 @@ async def create_user(
         email=user.email,
         hashed_password=get_password_hash(user.password),
         is_active=False,
+        rol=user.rol,
         activation_token=token,
         activation_expires_at=expires_at,
     )
@@ -978,26 +1007,6 @@ async def update_user_status(
         "email": user.email,
         "is_active": user.is_active,
     }
-
-
-@app.put("/api/users/{user_id}/rol")
-async def update_user_role(
-    user_id: int,
-    req: UserRoleUpdate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_admin_user),
-):
-    if current_user.rol != "admin":
-        raise HTTPException(status_code=403, detail="No autorizado.")
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-    if req.rol not in ["admin", "cliente_base", "distribuidor"]:
-        raise HTTPException(status_code=400, detail="Rol inválido.")
-    user.rol = req.rol
-    db.commit()
-    db.refresh(user)
-    return {"status": "success", "user": {"id": user.id, "username": user.username, "rol": user.rol}}
 
 
 # ========================================================================
@@ -1473,9 +1482,14 @@ def _generar_guia() -> str:
 
 
 @app.post("/api/pedidos", status_code=201)
-async def crear_pedido(req: CrearPedidoRequest, db: Session = Depends(get_db)):
+async def crear_pedido(
+    req: CrearPedidoRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     Crea un pedido público de Nequi Contra Entrega.
+    Si el usuario está autenticado, vincula el pedido a su cuenta.
     NO descuenta stock (eso ocurre al aprobar).
     Genera un número de guía único para rastreo.
     """
@@ -1525,6 +1539,7 @@ async def crear_pedido(req: CrearPedidoRequest, db: Session = Depends(get_db)):
 
     try:
         nuevo_pedido = Pedido(
+            user_id=current_user.id if current_user else None,
             guia_rastreo=guia,
             cliente_nombre=req.cliente_nombre,
             cliente_telefono=req.cliente_telefono,
@@ -1601,6 +1616,41 @@ async def rastrear_pedido(guia: str, db: Session = Depends(get_db)):
             for it in items
         ],
     }
+
+
+@app.get("/api/pedidos/mis-pedidos")
+async def mis_pedidos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retorna los pedidos vinculados al usuario autenticado (cliente/distribuidor)."""
+    pedidos = (
+        db.query(Pedido)
+        .filter(Pedido.user_id == current_user.id)
+        .order_by(Pedido.fecha_creacion.desc())
+        .all()
+    )
+    result = []
+    for p in pedidos:
+        items = db.query(PedidoItem).filter(PedidoItem.pedido_id == p.id).all()
+        result.append({
+            "id": p.id,
+            "guia_rastreo": p.guia_rastreo,
+            "total": p.total,
+            "estado": p.estado,
+            "fecha_creacion": p.fecha_creacion.isoformat() if p.fecha_creacion else None,
+            "fecha_actualizacion": p.fecha_actualizacion.isoformat() if p.fecha_actualizacion else None,
+            "items": [
+                {
+                    "nombre_producto": it.nombre_producto,
+                    "cantidad": it.cantidad,
+                    "precio_unitario": it.precio_unitario,
+                    "subtotal": it.subtotal,
+                }
+                for it in items
+            ],
+        })
+    return result
 
 
 # --- ADMINISTRACIÓN DE PEDIDOS (requiere autenticación) ---

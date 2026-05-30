@@ -16,6 +16,7 @@ class User(Base):
     activation_expires_at = Column(DateTime, nullable=True)
 
     ventas = relationship("Venta", back_populates="usuario")
+    pedidos = relationship("Pedido", back_populates="usuario")
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
@@ -96,6 +97,7 @@ class Pedido(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     guia_rastreo = Column(String, unique=True, index=True, nullable=False)
     cliente_nombre = Column(String, nullable=False)
     cliente_telefono = Column(String, nullable=False)
@@ -108,6 +110,7 @@ class Pedido(Base):
     fecha_creacion = Column(DateTime, default=func.now())
     fecha_actualizacion = Column(DateTime, default=func.now(), onupdate=func.now())
 
+    usuario = relationship("User", back_populates="pedidos")
     items = relationship("PedidoItem", back_populates="pedido", cascade="all, delete-orphan")
 
 class PedidoItem(Base):

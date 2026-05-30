@@ -156,11 +156,11 @@ function Login() {
   }
 
   return (
-    <div style={containerStyle}>
+    <div className="theme-public-clean" style={containerStyle}>
       <div style={cardStyle}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ color: '#e6edf3', fontSize: '1.4rem', fontWeight: '700' }}>Élan Pure</h1>
-          <p style={{ color: '#8b949e', fontSize: '0.9rem', marginTop: '4px' }}>
+          <h1 style={{ color: 'var(--color-text-main)', fontSize: '1.4rem', fontWeight: '700' }}>Élan Pure</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
             {stage === 'login' ? 'Commerce Manager' : 'Recuperación de Cuenta'}
           </p>
         </div>
@@ -169,25 +169,25 @@ function Login() {
         {renderForm()}
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
           {stage === 'login' && (
-            <p style={{ color: '#8b949e', fontSize: '0.85rem', marginBottom: '8px' }}>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
               ¿No tienes cuenta?{' '}
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/register') }} style={{ color: '#1e8a5e', textDecoration: 'none' }}>Regístrate</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/register') }} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Regístrate</a>
             </p>
           )}
-          <a href="/" style={{ color: '#8b949e', fontSize: '0.85rem', textDecoration: 'none' }}>← Ir al catálogo</a>
+          <a href="/" style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textDecoration: 'none' }}>← Ir al catálogo</a>
         </div>
       </div>
     </div>
   )
 }
 
-const containerStyle = { minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const cardStyle = { background: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px' }
-const labelStyle = { color: '#c9d1d9', fontSize: '0.9rem', display: 'block', marginBottom: '6px' }
-const inputStyle = { width: '100%', background: '#0d1117', border: '1px solid #30363d', color: '#e6edf3', borderRadius: '8px', padding: '10px 14px', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' }
-const buttonStyle = { width: '100%', background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', marginTop: '8px' }
-const linkStyle = { color: '#1e8a5e', fontSize: '0.85rem', textDecoration: 'none' }
-const errorBoxStyle = { background: 'rgba(248,81,73,0.1)', border: '1px solid rgba(248,81,73,0.4)', color: '#f85149', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }
-const successBoxStyle = { background: 'rgba(46,160,67,0.1)', border: '1px solid rgba(46,160,67,0.4)', color: '#3fb950', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }
+const containerStyle = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+const cardStyle = { background: '#ffffff', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px', boxShadow: 'var(--shadow-md)' }
+const labelStyle = { color: '#374151', fontSize: '0.9rem', display: 'block', marginBottom: '6px', fontWeight: '500' }
+const inputStyle = { width: '100%', background: '#f8fafc', border: '1px solid #d1d5db', color: 'var(--color-text-main)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }
+const buttonStyle = { width: '100%', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', marginTop: '8px' }
+const linkStyle = { color: 'var(--color-primary)', fontSize: '0.85rem', textDecoration: 'none' }
+const errorBoxStyle = { background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.3)', color: '#b91c1c', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }
+const successBoxStyle = { background: 'rgba(46,160,67,0.08)', border: '1px solid rgba(46,160,67,0.3)', color: '#166534', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }
 
 export default Login

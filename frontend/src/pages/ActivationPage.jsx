@@ -86,4 +86,4 @@ export default function ActivationPage() {
 
 const containerStyle = { minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }
 const cardStyle = { background: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px' }
-const buttonStyle = { display: 'inline-block', background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px 32px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', textDecoration: 'none' }
+const buttonStyle = { display: 'inline-block', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px 32px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', textDecoration: 'none' }

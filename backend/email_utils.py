@@ -78,7 +78,7 @@ def _build_activation_html(activation_url: str) -> str:
 
 async def send_reset_email(to_email: str, reset_token: str) -> bool:
     print("=" * 60)
-    print(f"  📧  OTP GENERADO")
+    print(f"  [EMAIL] OTP GENERADO")
     print(f"  Para:   {to_email}")
     print(f"  Código: {reset_token}")
     print("=" * 60)
@@ -106,7 +106,7 @@ async def send_reset_email(to_email: str, reset_token: str) -> bool:
 
 async def send_activation_email(to_email: str, activation_url: str) -> bool:
     print("=" * 60)
-    print(f"  📧  EMAIL DE ACTIVACIÓN GENERADO")
+    print(f"  [EMAIL] EMAIL DE ACTIVACION GENERADO")
     print(f"  Para:   {to_email}")
     print(f"  Enlace: {activation_url}")
     print("=" * 60)

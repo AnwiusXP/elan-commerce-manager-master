@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getUsers, createUser, deleteUser, updateUserStatus } from '../services/userService'
-import api from '../services/api'
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rol, setRol] = useState('cliente_base')
   const [cargando, setCargando] = useState(false)
   const [mensaje, setMensaje] = useState({ text: '', type: '' })
 
@@ -29,11 +29,12 @@ function Usuarios() {
     if (!username || !email || !password) return
     setCargando(true)
     try {
-      await createUser(username, email, password)
+      await createUser(username, email, password, rol)
       setMensaje({ text: 'Usuario creado con éxito', type: 'success' })
       setUsername('')
       setEmail('')
       setPassword('')
+      setRol('cliente_base')
       fetchUsers()
     } catch (error) {
       setMensaje({ text: error.response?.data?.detail || 'Error al crear usuario', type: 'error' })
@@ -109,6 +110,18 @@ function Usuarios() {
               style={inputStyle} 
               required
             />
+            <select 
+              value={rol} 
+              onChange={e => setRol(e.target.value)} 
+              style={{
+                background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
+                borderRadius: '8px', padding: '10px', outline: 'none', minWidth: '150px'
+              }}
+            >
+              <option value="cliente_base">Cliente Base</option>
+              <option value="distribuidor">Distribuidor</option>
+              <option value="admin">Administrador</option>
+            </select>
             <button type="submit" disabled={cargando} style={buttonStyle}>
               {cargando ? 'Creando...' : 'Crear Usuario'}
             </button>
@@ -134,27 +147,14 @@ function Usuarios() {
                   <td style={{ ...tdStyle, fontWeight: '600', color: '#e6edf3' }}>{u.username}</td>
                   <td style={tdStyle}>{u.email}</td>
                   <td style={tdStyle}>
-                    <select
-                      value={u.rol || 'cliente_base'}
-                      onChange={async (e) => {
-                        const nuevoRol = e.target.value;
-                        try {
-                          await api.put(`/api/users/${u.id}/rol`, { rol: nuevoRol });
-                          setUsuarios(usuarios.map(usr => usr.id === u.id ? { ...usr, rol: nuevoRol } : usr));
-                          setMensaje({ text: 'Rol actualizado', type: 'success' });
-                        } catch (err) {
-                          setMensaje({ text: 'Error al cambiar el rol del usuario', type: 'error' });
-                        }
-                      }}
-                      style={{
-                        background: '#0d1117', color: '#e6edf3', border: '1px solid #30363d',
-                        borderRadius: '6px', padding: '6px 8px', fontSize: '0.85rem'
-                      }}
-                    >
-                      <option value="cliente_base">Cliente Base</option>
-                      <option value="distribuidor">Distribuidor</option>
-                      <option value="admin">Administrador</option>
-                    </select>
+                    <span style={{
+                      background: u.rol === 'admin' ? 'rgba(0,162,154,0.15)' : u.rol === 'distribuidor' ? 'rgba(0,255,204,0.1)' : 'rgba(255,255,255,0.05)',
+                      color: u.rol === 'admin' ? 'var(--color-primary)' : '#e6edf3',
+                      border: '1px solid ' + (u.rol === 'admin' ? 'var(--color-primary-border)' : '#30363d'),
+                      borderRadius: '6px', padding: '4px 10px', fontSize: '0.82rem', fontWeight: '500'
+                    }}>
+                      {u.rol === 'admin' ? 'Admin' : u.rol === 'distribuidor' ? 'Distribuidor' : 'Cliente Base'}
+                    </span>
                   </td>
                   <td style={tdStyle}>
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
@@ -162,7 +162,7 @@ function Usuarios() {
                         position: 'relative',
                         width: '42px',
                         height: '22px',
-                        background: u.is_active ? '#1e8a5e' : '#30363d',
+                        background: u.is_active ? 'var(--color-primary)' : '#30363d',
                         borderRadius: '11px',
                         transition: 'background 0.2s ease'
                       }}>
@@ -211,7 +211,7 @@ function Usuarios() {
 }
 
 const inputStyle = { background: '#0d1117', border: '1px solid #30363d', color: '#e6edf3', borderRadius: '8px', padding: '10px', flex: 1, outline: 'none', minWidth: '140px' }
-const buttonStyle = { background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontWeight: '600', cursor: 'pointer' }
+const buttonStyle = { background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontWeight: '600', cursor: 'pointer' }
 const thStyle = { padding: '12px 16px', fontSize: '0.85rem', color: '#8b949e' }
 const tdStyle = { padding: '12px 16px', fontSize: '0.95rem' }
 

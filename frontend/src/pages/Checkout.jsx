@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { crearPedido } from '../services/pedidoService'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
+import { obtenerUsuario, logout } from '../services/authService'
 
 function Checkout() {
   const [carrito, setCarrito] = useState([])
@@ -10,6 +11,7 @@ function Checkout() {
   const [resultado, setResultado] = useState(null)
   const [error, setError] = useState('')
   const [copiado, setCopiado] = useState(false)
+  const [usuario] = useState(obtenerUsuario)
   const navigate = useNavigate()
 
   // Form fields
@@ -81,7 +83,7 @@ function Checkout() {
   if (resultado) {
     return (
       <div className="theme-public-clean">
-        <NavbarPublico totalCarrito={0} showSearch={false} />
+        <NavbarPublico totalCarrito={0} showSearch={false} usuario={usuario} onLogout={() => { logout(); navigate('/') }} />
 
         <div style={{ maxWidth: '680px', margin: '48px auto', padding: '0 20px' }}>
           {/* Success Card */}
@@ -208,7 +210,7 @@ function Checkout() {
   // --- Formulario de Checkout ---
   return (
     <div className="theme-public-clean">
-      <NavbarPublico totalCarrito={carrito.reduce((a, it) => a + it.cantidad, 0)} showSearch={false} />
+      <NavbarPublico totalCarrito={carrito.reduce((a, it) => a + it.cantidad, 0)} showSearch={false} usuario={usuario} onLogout={() => { logout(); navigate('/') }} />
 
       <div style={{ maxWidth: '960px', margin: '40px auto', padding: '0 20px' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0d1117', marginBottom: '32px' }}>Datos de Envío y Pago</h1>

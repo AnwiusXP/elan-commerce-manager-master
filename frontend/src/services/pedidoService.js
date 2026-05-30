@@ -28,6 +28,19 @@ export const rastrearPedido = async (guia) => {
   }
 }
 
+/**
+ * Lista los pedidos del usuario autenticado (cliente/distribuidor).
+ */
+export const listarMisPedidos = async () => {
+  try {
+    const res = await api.get('/api/pedidos/mis-pedidos')
+    return { ok: true, data: res.data }
+  } catch (error) {
+    const detail = error?.response?.data?.detail
+    return { ok: false, mensaje: detail || 'Error al cargar tus pedidos.' }
+  }
+}
+
 // --- FUNCIONES ADMIN (requieren token JWT) ---
 
 /**

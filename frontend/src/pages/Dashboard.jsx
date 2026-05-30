@@ -80,7 +80,7 @@ function Dashboard() {
     labels: ventasMensuales.labels,
     datasets: [{
       data: ventasMensuales.data,
-      backgroundColor: '#1e8a5e',
+      backgroundColor: 'var(--color-primary)',
       borderRadius: 6,
     }]
   }
@@ -109,19 +109,19 @@ function Dashboard() {
               </div>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Ventas del día</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#1e8a5e' }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--color-primary)' }}>
                   ${ventasDelDia.toLocaleString('es-CO')}
                 </div>
               </div>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Bajo inventario</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: bajos > 0 ? '#f85149' : '#1e8a5e' }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: bajos > 0 ? '#f85149' : 'var(--color-primary)' }}>
                   {bajos} productos
                 </div>
               </div>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Predicción</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: prediccionNivel === 'Alto' ? '#f85149' : '#1e8a5e' }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: prediccionNivel === 'Alto' ? '#f85149' : 'var(--color-primary)' }}>
                   {prediccionNivel === 'Alto' ? 'Alta demanda' : prediccionNivel === 'Normal' ? 'Demanda normal' : prediccionNivel}
                 </div>
               </div>

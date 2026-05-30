@@ -164,9 +164,9 @@ function Reportes() {
     ...prediccion.datosGrafica,
     datasets: (prediccion.datosGrafica.datasets || []).map((dataset) => ({
       ...dataset,
-      borderColor: '#1e8a5e',
+      borderColor: 'var(--color-primary)',
       backgroundColor: 'rgba(30, 138, 94, 0.14)',
-      pointBackgroundColor: '#1e8a5e',
+      pointBackgroundColor: 'var(--color-primary)',
       pointBorderColor: '#ffffff'
     }))
   } : null;
@@ -190,7 +190,7 @@ function Reportes() {
   };
 
   const buttonStyle = {
-    background: '#1e8a5e',
+    background: 'var(--color-primary)',
     color: '#ffffff',
     border: 'none',
     padding: '10px 20px',
@@ -202,7 +202,7 @@ function Reportes() {
 
   const exportButtonStyle = (variant = 'primary', disabled = false) => ({
     ...buttonStyle,
-    background: variant === 'primary' ? '#1e8a5e' : '#3b82f6',
+    background: variant === 'primary' ? 'var(--color-primary)' : '#3b82f6',
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
@@ -279,7 +279,7 @@ function Reportes() {
 
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Demanda Proyectada (Prox. Dia)</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#1e8a5e' }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: '700', color: 'var(--color-primary)' }}>
                   {prediccion.cantidad_estimada} <span style={{ fontSize: '1rem', color: '#8b949e' }}>unidades</span>
                 </div>
               </div>
@@ -289,7 +289,7 @@ function Reportes() {
                 <div style={{
                   fontSize: '1.8rem',
                   fontWeight: '700',
-                  color: prediccion.nivel === 'Alto' ? '#f85149' : (prediccion.nivel === 'Normal' ? '#1e8a5e' : '#e3b341')
+                  color: prediccion.nivel === 'Alto' ? '#f85149' : (prediccion.nivel === 'Normal' ? 'var(--color-primary)' : '#e3b341')
                 }}>
                   {prediccion.nivel}
                 </div>

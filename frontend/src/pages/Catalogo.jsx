@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import api from '../services/api'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
-import { estaAutenticado } from '../services/authService'
+import { estaAutenticado, obtenerUsuario, logout } from '../services/authService'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
@@ -11,6 +10,7 @@ function Catalogo() {
   const [busqueda, setBusqueda] = useState('')
   const [carrito, setCarrito] = useState([])
   const autenticado = estaAutenticado()
+  const [usuario] = useState(obtenerUsuario)
   
   // Estado para la Vista Previa (Modal)
   const [previewItem, setPreviewItem] = useState(null)
@@ -71,11 +71,11 @@ function Catalogo() {
   return (
     <div className="theme-public-clean">
       
-      <NavbarPublico totalCarrito={totalCarrito} busqueda={busqueda} setBusqueda={setBusqueda} showSearch={true} />
+      <NavbarPublico totalCarrito={totalCarrito} busqueda={busqueda} setBusqueda={setBusqueda} showSearch={true} usuario={usuario} onLogout={() => { logout(); window.location.reload() }} />
 
       {/* Hero */}
       <div style={{ 
-        background: 'linear-gradient(135deg, #f0fdf4 0%, #ecf5ff 100%)', 
+        background: 'linear-gradient(135deg, var(--color-bg-light) 0%, var(--color-secondary-soft) 100%)', 
         color: 'var(--color-text-main)', textAlign: 'center', padding: '70px 32px',
         borderBottom: '1px solid var(--color-border)'
       }}>
@@ -145,10 +145,9 @@ function Catalogo() {
                       {p.nombre}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-                    {autenticado ? (
-                      <>
-                        <div style={{ color: '#1e8a5e', fontSize: '1.25rem', fontWeight: '700' }}>
+                    {autenticado && p.precio != null ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
+                        <div style={{ color: 'var(--color-brand-primary)', fontSize: '1.25rem', fontWeight: '700' }}>
                           ${(p.precio || 0).toLocaleString('es-CO')}
                         </div>
                         <button 
@@ -163,19 +162,8 @@ function Catalogo() {
                         >
                           +
                         </button>
-                      </>
-                    ) : (
-                      <div style={{ marginTop: '12px', textAlign: 'center', width: '100%' }}>
-                        <Link to="/login" style={{
-                          display: 'block', background: '#1168b3', color: '#fff',
-                          textDecoration: 'none', padding: '8px 12px', borderRadius: '8px',
-                          fontSize: '0.85rem', fontWeight: '600', transition: 'background 0.2s'
-                        }}>
-                          🔑 Inicia sesión para ver precios
-                        </Link>
                       </div>
-                    )}
-                  </div>
+                    ) : null}
                 </div>
               </div>
             ))}
@@ -213,7 +201,7 @@ function Catalogo() {
             {/* Right side: Details */}
             <div style={{ flex: '1', padding: '48px 40px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <span style={{ color: '#1e8a5e', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <span style={{ color: 'var(--color-brand-primary)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   {previewItem.categoria}
                 </span>
                 <button 
@@ -228,9 +216,9 @@ function Catalogo() {
                 {previewItem.nombre}
               </h2>
               
-              {autenticado ? (
+              {autenticado && previewItem.precio != null ? (
                 <>
-                  <div style={{ fontSize: '1.8rem', color: '#1e8a5e', fontWeight: '700', marginBottom: '24px' }}>
+                  <div style={{ fontSize: '1.8rem', color: 'var(--color-brand-primary)', fontWeight: '700', marginBottom: '24px' }}>
                     ${(previewItem.precio || 0).toLocaleString('es-CO')}
                   </div>
                   
@@ -258,14 +246,9 @@ function Catalogo() {
                   </button>
                 </>
               ) : (
-                <div style={{ marginTop: 'auto', textAlign: 'center' }}>
-                  <Link to="/login" style={{
-                    display: 'block', background: '#1168b3', color: '#fff', textDecoration: 'none',
-                    padding: '14px 24px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: '600', transition: 'background 0.2s'
-                  }}>
-                    🔑 Inicia sesión para ver precios
-                  </Link>
-                </div>
+                <p style={{ color: '#6c757d', fontSize: '1rem', lineHeight: '1.6', marginBottom: '32px', flex: '1', marginTop: 'auto', display: 'flex', alignItems: 'flex-end' }}>
+                  Producto premium de nuestra línea {previewItem.categoria} para el cuidado de tu hogar. Formulado con ingredientes de alta calidad para garantizar limpieza y frescura excepcionales.
+                </p>
               )}
             </div>
           </div>

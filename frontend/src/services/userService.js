@@ -5,8 +5,8 @@ export const getUsers = async () => {
   return res.data
 }
 
-export const createUser = async (username, email, password) => {
-  const res = await api.post('/api/users', { username, email, password })
+export const createUser = async (username, email, password, rol = 'cliente_base') => {
+  const res = await api.post('/api/users', { username, email, password, rol })
   return res.data
 }
 

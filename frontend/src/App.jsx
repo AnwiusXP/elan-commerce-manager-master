@@ -10,12 +10,14 @@ import Carrito from './pages/Carrito'
 import Checkout from './pages/Checkout'
 import Rastreo from './pages/Rastreo'
 import PrivateRoute from './components/PrivateRoute'
+import PrivateRouteCliente from './components/PrivateRouteCliente'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Usuarios from './pages/Usuarios'
 import Register from './pages/Register'
 import ActivationPage from './pages/ActivationPage'
 import Pedidos from './pages/Pedidos'
+import MisPedidos from './pages/MisPedidos'
 
 
 function App() {
@@ -32,6 +34,7 @@ function App() {
         <Route path="/restablecer-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/activate/*" element={<ActivationPage />} />
+        <Route path="/mis-pedidos" element={<PrivateRouteCliente><MisPedidos /></PrivateRouteCliente>} />
 
         {/* Rutas protegidas — solo si está autenticado */}
         <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin']}><Dashboard /></PrivateRoute>} />

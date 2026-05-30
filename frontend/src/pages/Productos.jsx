@@ -67,7 +67,7 @@ function Productos() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Gestión de Productos</h1>
           <button
             onClick={() => setModal(true)}
-            style={{ background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '9px 20px', fontWeight: '600', cursor: 'pointer' }}
+            style={{ background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '9px 20px', fontWeight: '600', cursor: 'pointer' }}
           >
             + Agregar producto
           </button>
@@ -96,7 +96,7 @@ function Productos() {
                     </td>
                     <td style={{ padding: '14px 20px' }}>{p.stock}</td>
                     <td style={{ padding: '14px 20px' }}>
-                      <button onClick={() => abrirEditar(p)} style={{ background: 'rgba(30,138,94,0.15)', color: '#1e8a5e', border: '1px solid #1e8a5e', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', marginRight: '8px' }}>✏️ Editar</button>
+                      <button onClick={() => abrirEditar(p)} style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-primary)', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', marginRight: '8px' }}>✏️ Editar</button>
                       <button onClick={() => handleEliminar(p.id)} style={{ background: 'rgba(248,81,73,0.1)', color: '#f85149', border: '1px solid #f85149', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer' }}>🗑️ Eliminar</button>
                     </td>
                   </tr>
@@ -146,7 +146,7 @@ function Productos() {
             </div>
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
               <button onClick={cerrarModal} style={{ flex: 1, background: 'transparent', border: '1px solid #30363d', color: '#8b949e', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={guardar} style={{ flex: 1, background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px', fontWeight: '600', cursor: 'pointer' }}>Guardar</button>
+              <button onClick={guardar} style={{ flex: 1, background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px', fontWeight: '600', cursor: 'pointer' }}>Guardar</button>
             </div>
           </div>
         </div>

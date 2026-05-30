@@ -5,7 +5,7 @@ import { forgotPassword, verifyOTP } from '../services/authService'
 function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
-  const [stage, setStage] = useState('email') // 'email' | 'verify'
+  const [stage, setStage] = useState('email')
   const [mensaje, setMensaje] = useState(null)
   const [error, setError] = useState(false)
   const [cargando, setCargando] = useState(false)
@@ -32,7 +32,6 @@ function ForgotPassword() {
     const res = await verifyOTP(email, otp)
     setCargando(false)
     if (res.ok) {
-      // Código validado, redirigir a la vista de nueva contraseña
       navigate('/restablecer-password', { state: { email, token: otp } })
     } else {
       setMensaje(res.mensaje)
@@ -41,29 +40,28 @@ function ForgotPassword() {
   }
 
   const msgStyle = {
-    background: error ? 'rgba(248,81,73,0.1)' : 'rgba(46,160,67,0.1)',
-    border: `1px solid ${error ? 'rgba(248,81,73,0.4)' : 'rgba(46,160,67,0.4)'}`,
-    color: error ? '#f85149' : '#3fb950',
+    background: error ? 'rgba(248,81,73,0.08)' : 'rgba(46,160,67,0.08)',
+    border: `1px solid ${error ? 'rgba(248,81,73,0.3)' : 'rgba(46,160,67,0.3)'}`,
+    color: error ? '#b91c1c' : '#166534',
     borderRadius: '8px', padding: '10px 14px',
     fontSize: '0.88rem', marginBottom: '16px'
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px' }}>
+    <div className="theme-public-clean" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#ffffff', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px', boxShadow: 'var(--shadow-md)' }}>
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ color: '#e6edf3', fontSize: '1.4rem', fontWeight: '700' }}>Recuperar Contraseña</h1>
-          <p style={{ color: '#8b949e', fontSize: '0.9rem', marginTop: '4px' }}>
+          <h1 style={{ color: 'var(--color-text-main)', fontSize: '1.4rem', fontWeight: '700' }}>Recuperar Contraseña</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
             {stage === 'email' ? 'Te enviaremos un código de verificación' : 'Ingresa el código que recibiste'}
           </p>
         </div>
 
         {mensaje && <div style={msgStyle}>{mensaje}</div>}
 
-        {/* Campo de email (siempre visible) */}
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ color: '#c9d1d9', fontSize: '0.9rem', display: 'block', marginBottom: '6px' }}>Correo Electrónico</label>
+          <label style={{ color: '#374151', fontSize: '0.9rem', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Correo Electrónico</label>
           <input
             type="email"
             value={email}
@@ -71,17 +69,16 @@ function ForgotPassword() {
             placeholder="ejemplo@yopmail.com"
             disabled={stage === 'verify'}
             style={{
-              width: '100%', background: '#0d1117', border: '1px solid #30363d',
-              color: stage === 'verify' ? '#8b949e' : '#e6edf3', borderRadius: '8px', padding: '10px 14px',
-              fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box'
+              width: '100%', background: '#f8fafc', border: '1px solid #d1d5db',
+              color: stage === 'verify' ? '#9ca3af' : 'var(--color-text-main)', borderRadius: '8px', padding: '10px 14px',
+              fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s'
             }}
           />
         </div>
 
-        {/* Campo de código de verificación (aparece tras enviar email) */}
         {stage === 'verify' && (
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ color: '#c9d1d9', fontSize: '0.9rem', display: 'block', marginBottom: '6px' }}>Código de Verificación</label>
+            <label style={{ color: '#374151', fontSize: '0.9rem', display: 'block', marginBottom: '6px', fontWeight: '500' }}>Código de Verificación</label>
             <input
               type="text"
               value={otp}
@@ -89,10 +86,11 @@ function ForgotPassword() {
               onChange={e => { setOtp(e.target.value); setError(false); setMensaje(null) }}
               placeholder="6 dígitos"
               style={{
-                width: '100%', background: '#0d1117', border: '1px solid #30363d',
-                color: '#e6edf3', borderRadius: '8px', padding: '10px 14px',
+                width: '100%', background: '#f8fafc', border: '1px solid #d1d5db',
+                color: 'var(--color-text-main)', borderRadius: '8px', padding: '10px 14px',
                 fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box',
-                letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold'
+                letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold',
+                transition: 'border-color 0.2s'
               }}
             />
           </div>
@@ -102,7 +100,7 @@ function ForgotPassword() {
           onClick={stage === 'email' ? enviarCodigo : verificarCodigo}
           disabled={cargando}
           style={{
-            width: '100%', background: cargando ? '#145c3f' : '#1e8a5e', border: 'none',
+            width: '100%', background: cargando ? '#0d9488' : 'var(--color-primary)', border: 'none',
             color: '#fff', borderRadius: '8px', padding: '11px',
             fontSize: '0.95rem', fontWeight: '600', cursor: cargando ? 'not-allowed' : 'pointer',
             marginTop: '8px'
@@ -117,14 +115,14 @@ function ForgotPassword() {
         {stage === 'verify' && (
           <div style={{ textAlign: 'center', marginTop: '12px' }}>
             <a href="#" onClick={e => { e.preventDefault(); setStage('email'); setOtp(''); setMensaje(null) }}
-              style={{ color: '#1e8a5e', fontSize: '0.85rem', textDecoration: 'none' }}>
+              style={{ color: 'var(--color-primary)', fontSize: '0.85rem', textDecoration: 'none' }}>
               Reenviar código
             </a>
           </div>
         )}
 
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
-          <a href="/login" style={{ color: '#8b949e', fontSize: '0.85rem', textDecoration: 'none' }}>
+          <a href="/login" style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textDecoration: 'none' }}>
             ← Volver a Iniciar Sesión
           </a>
         </div>

@@ -14,13 +14,13 @@ export const login = async (usuario, contrasena) => {
 }
 
 export const logout = async () => {
-  try {
-    await api.post('/api/logout')
-  } catch (error) {
-    // Ignorar error de logout, pero eliminar el token local.
-  }
   localStorage.removeItem('token')
   localStorage.removeItem('user')
+}
+
+export const obtenerUserId = () => {
+  const user = obtenerUsuario()
+  return user ? user.id : null
 }
 
 export const estaAutenticado = () => {

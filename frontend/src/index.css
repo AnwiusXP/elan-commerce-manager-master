@@ -10,20 +10,30 @@ body {
   color: #e6edf3;
 }
 
+:root {
+  --color-primary: #00a29a;
+  --color-secondary: #00ffcc;
+  --color-bg-light: #f4faf9;
+  --color-text-main: #161b22;
+  --color-primary-soft: rgba(0, 162, 154, 0.1);
+  --color-primary-border: rgba(0, 162, 154, 0.28);
+  --color-secondary-soft: rgba(0, 255, 204, 0.14);
+  --color-focus-ring: rgba(0, 255, 204, 0.28);
+}
+
 /* 
   Purity Clean Theme - Módulo 4: Experiencia del Comprador
   Encapsulado para no colisionar con el panel administrativo oscuro.
 */
 .theme-public-clean {
-  --color-bg-base: #f8fafc;
+  --color-bg-base: var(--color-bg-light);
   --color-bg-card: #ffffff;
-  --color-brand-primary: #00a650;
-  --color-brand-primary-hover: #008f43;
-  --color-brand-secondary: #1168b3;
-  --color-brand-secondary-hover: #0d5494;
-  --color-text-main: #0f172a;
+  --color-brand-primary: var(--color-primary);
+  --color-brand-primary-hover: var(--color-secondary);
+  --color-brand-secondary: var(--color-secondary);
+  --color-brand-secondary-hover: var(--color-primary);
   --color-text-muted: #475569;
-  --color-border: #e2e8f0;
+  --color-border: #d9e8e5;
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);

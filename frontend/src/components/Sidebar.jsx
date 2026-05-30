@@ -35,9 +35,9 @@ function Sidebar({ active }) {
           <Link key={item.path} to={item.path} style={{
             display: 'block', textDecoration: 'none',
             padding: '10px 24px', fontSize: '0.92rem',
-            color: active === item.label ? '#1e8a5e' : '#8b949e',
-            background: active === item.label ? 'rgba(30,138,94,0.08)' : 'transparent',
-            borderLeft: active === item.label ? '3px solid #1e8a5e' : '3px solid transparent',
+            color: active === item.label ? 'var(--color-primary)' : '#8b949e',
+            background: active === item.label ? 'var(--color-primary-soft)' : 'transparent',
+            borderLeft: active === item.label ? '3px solid var(--color-primary)' : '3px solid transparent',
           }}>
             {item.label}
           </Link>

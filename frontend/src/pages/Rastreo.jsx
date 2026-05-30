@@ -145,7 +145,7 @@ function Rastreo() {
                 padding: '36px', boxShadow: '0 4px 24px rgba(0,0,0,0.04)'
               }}>
                 <h3 style={{ fontWeight: '700', color: '#0d1117', marginBottom: '28px', fontSize: '1rem' }}>
-                  Estado del Pedido — <span style={{ color: '#1e8a5e' }}>{pedido.guia_rastreo}</span>
+                  Estado del Pedido — <span style={{ color: 'var(--color-brand-primary)' }}>{pedido.guia_rastreo}</span>
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                   {ESTADOS_TIMELINE.map((step, i) => {
@@ -172,7 +172,7 @@ function Rastreo() {
                           color: isCompleted || isActive ? '#fff' : 'var(--color-text-muted)',
                           border: isActive ? '3px solid var(--color-brand-secondary)' : isPending ? '2px solid var(--color-border)' : 'none',
                           transition: 'all 0.5s',
-                          boxShadow: isActive ? '0 0 0 4px rgba(17, 104, 179, 0.2)' : 'none',
+                          boxShadow: isActive ? '0 0 0 4px var(--color-focus-ring)' : 'none',
                           animation: isActive ? 'pulse 2s infinite' : 'none'
                         }}>
                           {isCompleted ? <CheckCircle2 size={18} /> : <step.icon size={18} />}
@@ -193,7 +193,7 @@ function Rastreo() {
                             {step.desc}
                           </div>
                           {isActive && pedido.fecha_actualizacion && (
-                            <div style={{ color: '#1e8a5e', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
+                            <div style={{ color: 'var(--color-brand-primary)', fontSize: '0.78rem', marginTop: '4px', fontWeight: '600' }}>
                               Actualizado: {new Date(pedido.fecha_actualizacion).toLocaleString('es-CO')}
                             </div>
                           )}
@@ -262,8 +262,8 @@ function Rastreo() {
 
       <style>{`
         @keyframes pulse {
-          0%, 100% { box-shadow: 0 0 0 4px rgba(45, 212, 139, 0.2); }
-          50% { box-shadow: 0 0 0 8px rgba(45, 212, 139, 0.1); }
+          0%, 100% { box-shadow: 0 0 0 4px var(--color-focus-ring); }
+          50% { box-shadow: 0 0 0 8px var(--color-secondary-soft); }
         }
       `}</style>
     </div>

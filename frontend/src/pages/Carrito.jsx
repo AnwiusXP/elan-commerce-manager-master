@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
+import { obtenerUsuario, logout } from '../services/authService'
 
 function Carrito() {
   const [carrito, setCarrito] = useState([])
   const [cargando, setCargando] = useState(false)
+  const [usuario] = useState(obtenerUsuario)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -29,7 +31,7 @@ function Carrito() {
   return (
     <div className="theme-public-clean">
 
-      <NavbarPublico totalCarrito={carrito.length > 0 ? carrito.reduce((a, it) => a + it.cantidad, 0) : 0} showSearch={false} />
+      <NavbarPublico totalCarrito={carrito.length > 0 ? carrito.reduce((a, it) => a + it.cantidad, 0) : 0} showSearch={false} usuario={usuario} onLogout={() => { logout(); navigate('/') }} />
 
       <div style={{ padding: '40px 32px' }}>
         <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0d1117', marginBottom: '28px' }}>
@@ -40,7 +42,7 @@ function Carrito() {
           <div style={{ textAlign: 'center', padding: '60px', color: '#8b949e' }}>
             <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🛒</div>
             <div>Tu carrito está vacío.</div>
-            <Link to="/" style={{ color: '#1e8a5e', textDecoration: 'none', marginTop: '12px', display: 'inline-block' }}>
+            <Link to="/" style={{ color: 'var(--color-brand-primary)', textDecoration: 'none', marginTop: '12px', display: 'inline-block' }}>
               ← Ver productos
             </Link>
           </div>
@@ -65,7 +67,7 @@ function Carrito() {
                     <div>
                       <div style={{ fontWeight: '700', color: '#0d1117', marginBottom: '4px' }}>{it.nombre}</div>
                       <div style={{ color: '#8b949e', fontSize: '0.85rem' }}>Cantidad: {it.cantidad}</div>
-                      <div style={{ color: '#1e8a5e', fontWeight: '700' }}>${it.precio.toLocaleString('es-CO')}</div>
+                      <div style={{ color: 'var(--color-brand-primary)', fontWeight: '700' }}>${it.precio.toLocaleString('es-CO')}</div>
                     </div>
                   </div>
                   <button onClick={() => eliminar(i)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer', fontSize: '1.1rem' }}>
@@ -80,11 +82,11 @@ function Carrito() {
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280', fontSize: '0.9rem', marginBottom: '8px' }}>
                 <span>Subtotal</span><span>${total.toLocaleString('es-CO')}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1e8a5e', fontSize: '1.1rem', fontWeight: '700', borderTop: '1px solid #e1e4e8', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-brand-primary)', fontSize: '1.1rem', fontWeight: '700', borderTop: '1px solid #e1e4e8', paddingTop: '12px' }}>
                 <span>Total</span><span>${total.toLocaleString('es-CO')}</span>
               </div>
               <button onClick={irACheckout} style={{
-                background: '#1e8a5e', border: 'none', color: '#fff',
+                background: 'var(--color-brand-primary)', border: 'none', color: '#fff',
                 borderRadius: '8px', padding: '12px', fontWeight: '600',
                 width: '100%', marginTop: '16px', cursor: 'pointer', fontSize: '0.95rem'
               }}>
