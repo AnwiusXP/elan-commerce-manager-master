@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
-import { getUsers, createUser, deleteUser, updateUserStatus } from '../services/userService'
+import { getUsers, createUser, deleteUser, updateUserStatus, updateUser } from '../services/userService'
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
@@ -10,6 +10,12 @@ function Usuarios() {
   const [rol, setRol] = useState('cliente_base')
   const [cargando, setCargando] = useState(false)
   const [mensaje, setMensaje] = useState({ text: '', type: '' })
+  const [editModal, setEditModal] = useState(false)
+  const [editUserData, setEditUserData] = useState(null)
+  const [editUsername, setEditUsername] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editRol, setEditRol] = useState('')
+  const [editCargando, setEditCargando] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -62,6 +68,41 @@ function Usuarios() {
     } catch (error) {
       setMensaje({ text: error.response?.data?.detail || 'Error al actualizar estado', type: 'error' })
     }
+  }
+
+  function abrirEditModal(user) {
+    setEditUserData(user)
+    setEditUsername(user.username)
+    setEditEmail(user.email)
+    setEditRol(user.rol)
+    setEditModal(true)
+  }
+
+  function cerrarEditModal() {
+    setEditModal(false)
+    setEditUserData(null)
+    setEditUsername('')
+    setEditEmail('')
+    setEditRol('')
+  }
+
+  async function handleEditSubmit(e) {
+    e.preventDefault()
+    if (!editUsername || !editEmail) return
+    setEditCargando(true)
+    try {
+      const updated = await updateUser(editUserData.id, {
+        username: editUsername,
+        email: editEmail,
+        rol: editRol,
+      })
+      setUsuarios(usuarios.map(u => u.id === updated.id ? updated : u))
+      setMensaje({ text: 'Usuario actualizado con éxito', type: 'success' })
+      cerrarEditModal()
+    } catch (error) {
+      setMensaje({ text: error.response?.data?.detail || 'Error al actualizar usuario', type: 'error' })
+    }
+    setEditCargando(false)
   }
 
   return (
@@ -193,6 +234,12 @@ function Usuarios() {
                     </label>
                   </td>
                   <td style={tdStyle}>
+                    <button
+                      onClick={() => abrirEditModal(u)}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.9rem', marginRight: '12px' }}
+                    >
+                      Editar
+                    </button>
                     <button 
                       onClick={() => handleDelete(u.id)} 
                       style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer', fontSize: '0.9rem' }}
@@ -206,6 +253,47 @@ function Usuarios() {
           </table>
         </div>
       </div>
+
+      {editModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '400px' }}>
+            <h5 style={{ marginBottom: '24px', fontWeight: '700' }}>Editar Usuario</h5>
+            <form onSubmit={handleEditSubmit}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Username</label>
+                <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} style={inputStyle} required />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Email</label>
+                <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} style={inputStyle} required />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#c9d1d9', fontSize: '0.88rem' }}>Rol</label>
+                <select value={editRol} onChange={e => setEditRol(e.target.value)} style={inputStyle}>
+                  {editUserData && editUserData.rol === 'admin' ? (
+                    <>
+                      <option value="admin">Administrador</option>
+                      <option value="distribuidor">Distribuidor</option>
+                      <option value="cliente_base">Cliente Base</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="cliente_base">Cliente Base</option>
+                      <option value="distribuidor">Distribuidor</option>
+                    </>
+                  )}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <button type="button" onClick={cerrarEditModal} style={{ flex: 1, background: 'transparent', border: '1px solid #30363d', color: '#8b949e', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={editCargando} style={{ flex: 1, background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px', fontWeight: '600', cursor: 'pointer' }}>
+                  {editCargando ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

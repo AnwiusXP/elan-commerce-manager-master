@@ -301,6 +301,23 @@ class UserStatusUpdate(BaseModel):
     is_active: bool
 
 
+class UserAdminUpdate(BaseModel):
+    """Esquema para que el administrador edite cualquier usuario, incluyendo el rol.
+    La validación de qué roles puede asignar se hace en el controlador."""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+    rol: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Esquema de autogestión de perfil para cualquier usuario autenticado.
+    El campo 'rol' está deliberadamente OMITIDO — es inmutable para el propio usuario."""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+
+
 # --- ENDPOINTS ---
 
 
@@ -449,6 +466,7 @@ async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db
 
 
 @app.get("/api/auth/activate/{token}")
+@app.get("/api/users/activate/{token}")
 async def activate_account(token: str, db: Session = Depends(get_db)):
     print(f"[AUTH] Activación recibida con token: {token}")
     user = db.query(User).filter(User.activation_token == token).first()
@@ -1168,12 +1186,11 @@ async def create_user(
             status_code=400, detail="Conflicto de llave unica al crear usuario."
         )
 
-    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    activation_url = f"{base_url}/activate/{token}"
+    # Use BACKEND_URL for activation links (fallback to localhost)
     if background_tasks:
-        background_tasks.add_task(send_activation_email, user.email, activation_url)
+        background_tasks.add_task(send_activation_email, user.email, token)
     else:
-        await send_activation_email(user.email, activation_url)
+        await send_activation_email(user.email, token)
 
     return new_user
 
@@ -1220,6 +1237,90 @@ async def update_user_status(
         "email": user.email,
         "is_active": user.is_active,
     }
+
+
+@app.put("/api/users/{user_id}")
+async def admin_update_user(
+    user_id: int,
+    update: UserAdminUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """El administrador edita los datos de un usuario, incluido el rol.
+    Si el usuario destino NO es admin, no se le puede asignar el rol 'admin'."""
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    # Validar unicidad de username
+    if update.username is not None:
+        existing = get_user_by_username(db, update.username)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El username ya esta registrado.")
+
+    # Validar unicidad de email
+    if update.email is not None:
+        existing = get_user_by_email(db, update.email)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El email ya esta registrado.")
+
+    # Restricción de rol: si el target no es admin, no se le puede asignar admin
+    ROLES_VALIDOS = ["admin", "cliente_base", "distribuidor"]
+    if update.rol is not None:
+        if update.rol not in ROLES_VALIDOS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Rol invalido. Debe ser uno de: {', '.join(ROLES_VALIDOS)}",
+            )
+        if target.rol != "admin" and update.rol == "admin":
+            raise HTTPException(
+                status_code=400,
+                detail="No puedes elevar a admin a un usuario que no tiene ese rol.",
+            )
+
+    # Aplicar cambios
+    if update.username is not None:
+        target.username = update.username
+    if update.email is not None:
+        target.email = update.email
+    if update.is_active is not None:
+        target.is_active = update.is_active
+    if update.rol is not None:
+        target.rol = update.rol
+
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+@app.put("/api/profile")
+async def update_own_profile(
+    update: ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Cualquier usuario autenticado puede modificar su propio perfil.
+    El campo 'rol' es inmutable — se ignora aunque se envíe en el JSON."""
+    user_id = current_user.id
+
+    if update.username is not None:
+        existing = get_user_by_username(db, update.username)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El username ya esta registrado.")
+        current_user.username = update.username
+
+    if update.email is not None:
+        existing = get_user_by_email(db, update.email)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El email ya esta registrado.")
+        current_user.email = update.email
+
+    if update.password is not None and update.password.strip():
+        current_user.hashed_password = get_password_hash(update.password)
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 # ========================================================================

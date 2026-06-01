@@ -53,6 +53,19 @@ export default function NavbarPublico({ totalCarrito, busqueda, setBusqueda, sho
         Mis Pedidos / Compras
       </button>
       <button
+        onClick={() => { setMenuAbierto(false); navigate('/mis-datos') }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+          padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
+          fontSize: '0.9rem', color: 'var(--color-text-main)', transition: 'background 0.15s'
+        }}
+        onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+        onMouseLeave={(e) => e.target.style.background = 'none'}
+      >
+        <User size={16} style={{ color: 'var(--color-text-muted)' }} />
+        Mis Datos
+      </button>
+      <button
         onClick={() => { setMenuAbierto(false); if (onLogout) onLogout() }}
         style={{
           display: 'flex', alignItems: 'center', gap: '10px', width: '100%',

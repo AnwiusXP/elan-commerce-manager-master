@@ -63,3 +63,13 @@ export const resetPassword = async (email, token, new_password) => {
     return { ok: false, mensaje: error?.response?.data?.detail || 'Error al restablecer contraseña.' }
   }
 }
+
+export const updateProfile = async (data) => {
+  const res = await api.put('/api/profile', data)
+  if (res.data) {
+    const currentUser = obtenerUsuario()
+    const updatedUser = { ...currentUser, ...res.data }
+    localStorage.setItem('user', JSON.stringify(updatedUser))
+  }
+  return res.data
+}

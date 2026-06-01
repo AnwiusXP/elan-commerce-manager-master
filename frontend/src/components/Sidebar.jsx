@@ -6,7 +6,7 @@ function Sidebar({ active }) {
 
   async function cerrarSesion() {
     await logout()
-    navigate('/login')
+    navigate('/')
   }
 
   return (

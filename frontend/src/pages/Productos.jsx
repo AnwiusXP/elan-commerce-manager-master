@@ -7,6 +7,7 @@ function Productos() {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [busqueda, setBusqueda] = useState('')
   const [modal, setModal] = useState(false)
   const [editId, setEditId] = useState(null)
   const [form, setForm] = useState({ nombre: '', categoria_id: '', precio_base: '', precio_distribuidor: '', stock: '' })
@@ -88,6 +89,21 @@ function Productos() {
           </button>
         </div>
 
+        <div style={{ marginBottom: '20px' }}>
+          <input
+            type="text"
+            placeholder="Buscar por nombre o categoría..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            style={{
+              width: '100%', maxWidth: '400px',
+              background: '#0d1117', border: '1px solid #30363d',
+              color: '#e6edf3', borderRadius: '8px', padding: '10px 14px',
+              fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+            }}
+          />
+        </div>
+
         {cargando ? (
           <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando productos...</div>
         ) : (
@@ -101,7 +117,12 @@ function Productos() {
                 </tr>
               </thead>
               <tbody>
-                {productos.map((p) => (
+                {productos.filter(p => {
+                  const nombre = (p.nombre || '').toLowerCase()
+                  const categoria = (p.categoria || '').toLowerCase()
+                  const termino = (busqueda || '').toLowerCase()
+                  return nombre.includes(termino) || categoria.includes(termino)
+                }).map((p) => (
                   <tr key={p.id} style={{ borderBottom: '1px solid #21262d' }}>
                     <td style={{ padding: '14px 20px' }}>{p.nombre}</td>
                     <td style={{ padding: '14px 20px', color: '#8b949e' }}>{p.categoria || '—'}</td>

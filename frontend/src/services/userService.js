@@ -19,3 +19,8 @@ export const updateUserStatus = async (userId, isActive) => {
   const res = await api.put(`/api/users/${userId}/status`, { is_active: isActive })
   return res.data
 }
+
+export const updateUser = async (userId, data) => {
+  const res = await api.put(`/api/users/${userId}`, data)
+  return res.data
+}

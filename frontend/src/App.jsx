@@ -18,6 +18,7 @@ import Register from './pages/Register'
 import ActivationPage from './pages/ActivationPage'
 import Pedidos from './pages/Pedidos'
 import MisPedidos from './pages/MisPedidos'
+import MisDatos from './pages/MisDatos'
 import Categorias from './pages/Categorias'
 
 
@@ -36,6 +37,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/activate/*" element={<ActivationPage />} />
         <Route path="/mis-pedidos" element={<PrivateRouteCliente><MisPedidos /></PrivateRouteCliente>} />
+        <Route path="/mis-datos" element={<PrivateRouteCliente><MisDatos /></PrivateRouteCliente>} />
 
         {/* Rutas protegidas — solo si está autenticado */}
         <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin']}><Dashboard /></PrivateRoute>} />

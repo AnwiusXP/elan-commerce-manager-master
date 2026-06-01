@@ -109,7 +109,7 @@ class Pedido(Base):
         Index('ix_pedidos_estado', 'estado'),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     guia_rastreo = Column(String, unique=True, index=True, nullable=False)
     cliente_nombre = Column(String, nullable=False)
