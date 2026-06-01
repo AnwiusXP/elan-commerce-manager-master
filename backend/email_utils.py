@@ -7,27 +7,37 @@ MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
 MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USERNAME or "noreply@elan.com")
 MAIL_PORT = int(os.getenv("MAIL_PORT", "465"))
 MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-# For production (Render) prefer SSL/TLS on port 465. STARTTLS should be False when using SSL.
-MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "False").lower() in ("true", "1")
-MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "True").lower() in ("true", "1")
+
+def str_to_bool(val):
+    if isinstance(val, bool):
+        return val
+    return str(val).lower() in ("true", "1", "yes")
+
+# Parse boolean env vars strictly
+MAIL_STARTTLS = str_to_bool(os.getenv("MAIL_STARTTLS", "False"))
+MAIL_SSL_TLS = str_to_bool(os.getenv("MAIL_SSL_TLS", "True"))
 
 # Determine if SMTP is usable
 SMTP_CONFIGURED = bool(MAIL_SERVER and MAIL_PORT)
 
 _conf = None
 if SMTP_CONFIGURED:
-    _conf = ConnectionConfig(
-        MAIL_USERNAME=MAIL_USERNAME,
-        MAIL_PASSWORD=MAIL_PASSWORD,
-        MAIL_FROM=MAIL_FROM,
-        MAIL_PORT=MAIL_PORT,
-        MAIL_SERVER=MAIL_SERVER,
-        MAIL_FROM_NAME="Élan Pure Commerce",
-        MAIL_STARTTLS=MAIL_STARTTLS,
-        MAIL_SSL_TLS=MAIL_SSL_TLS,
-        USE_CREDENTIALS=bool(MAIL_USERNAME and MAIL_PASSWORD),
-        VALIDATE_CERTS=False,
-    )
+    try:
+        _conf = ConnectionConfig(
+            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+            MAIL_FROM=os.getenv("MAIL_FROM", MAIL_USERNAME or "noreply@elan.com"),
+            MAIL_PORT=int(os.getenv("MAIL_PORT", MAIL_PORT)),
+            MAIL_SERVER=os.getenv("MAIL_SERVER", MAIL_SERVER),
+            MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME", "Élan Pure Commerce"),
+            MAIL_STARTTLS=MAIL_STARTTLS,
+            MAIL_SSL_TLS=MAIL_SSL_TLS,
+            USE_CREDENTIALS=True,
+            VALIDATE_CERTS=True,
+        )
+    except Exception as e:
+        _conf = None
+        print("[EMAIL] ConnectionConfig initialization failed:", e)
 
 
 def _build_reset_html(reset_token: str) -> str:
