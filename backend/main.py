@@ -340,10 +340,17 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # TTL por rol: admin = 15 minutos, clientes/distribuidores = 7 días
+    if user.rol == 'admin':
+        access_token_expires = timedelta(minutes=15)
+    elif user.rol in ('cliente_base', 'distribuidor'):
+        access_token_expires = timedelta(days=7)
+    else:
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
         data={"sub": user.username, "user_id": user.id, "rol": user.rol},
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
     return {
         "access_token": access_token,

@@ -5,10 +5,11 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
 MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
 MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USERNAME or "noreply@elan.com")
-MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
+MAIL_PORT = int(os.getenv("MAIL_PORT", "465"))
 MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "True").lower() in ("true", "1")
-MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1")
+# For production (Render) prefer SSL/TLS on port 465. STARTTLS should be False when using SSL.
+MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "False").lower() in ("true", "1")
+MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "True").lower() in ("true", "1")
 
 # Determine if SMTP is usable
 SMTP_CONFIGURED = bool(MAIL_SERVER and MAIL_PORT)

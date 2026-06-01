@@ -4,8 +4,15 @@ export const login = async (usuario, contrasena) => {
   try {
     const res = await api.post('/api/login', { usuario, contrasena })
     if (res.data.access_token) {
-      localStorage.setItem('token', res.data.access_token)
-      localStorage.setItem('user', JSON.stringify(res.data.user))
+      // Store admin sessions in sessionStorage (volatile), others in localStorage (persistent)
+      const isAdmin = res.data.user?.role === 'admin' || res.data.user?.rol === 'admin'
+      if (isAdmin) {
+        sessionStorage.setItem('token', res.data.access_token)
+        sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      } else {
+        localStorage.setItem('token', res.data.access_token)
+        localStorage.setItem('user', JSON.stringify(res.data.user))
+      }
     }
     return { ok: true, user: res.data.user, role: res.data.user?.role }
   } catch (error) {
@@ -14,8 +21,14 @@ export const login = async (usuario, contrasena) => {
 }
 
 export const logout = async () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
+  try {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('user')
+  } catch (e) {
+    // ignore
+  }
 }
 
 export const obtenerUserId = () => {
@@ -24,17 +37,19 @@ export const obtenerUserId = () => {
 }
 
 export const estaAutenticado = () => {
-  return !!localStorage.getItem('token')
+  return !!(sessionStorage.getItem('token') || localStorage.getItem('token'))
 }
 
 export const obtenerUsuario = () => {
-  const user = localStorage.getItem('user')
-  return user ? JSON.parse(user) : null
+  const su = sessionStorage.getItem('user')
+  if (su) return JSON.parse(su)
+  const lu = localStorage.getItem('user')
+  return lu ? JSON.parse(lu) : null
 }
 
 export const obtenerRol = () => {
   const user = obtenerUsuario()
-  return user ? user.role : null
+  return user ? (user.role || user.rol) : null
 }
 
 export const forgotPassword = async (email) => {
@@ -69,7 +84,12 @@ export const updateProfile = async (data) => {
   if (res.data) {
     const currentUser = obtenerUsuario()
     const updatedUser = { ...currentUser, ...res.data }
-    localStorage.setItem('user', JSON.stringify(updatedUser))
+    // Update in the same storage where the token exists
+    if (sessionStorage.getItem('token')) {
+      sessionStorage.setItem('user', JSON.stringify(updatedUser))
+    } else {
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+    }
   }
   return res.data
 }
