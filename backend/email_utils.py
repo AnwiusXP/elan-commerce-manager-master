@@ -1,43 +1,15 @@
 import os
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from typing import Any, Dict
 
-# Read mail configuration from environment with strict keys and safe fallbacks
-MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
-MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
-MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USERNAME or "noreply@elan.com")
-MAIL_PORT = int(os.getenv("MAIL_PORT", "465"))
-MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+import resend
+from starlette.concurrency import run_in_threadpool
 
-def str_to_bool(val):
-    if isinstance(val, bool):
-        return val
-    return str(val).lower() in ("true", "1", "t", "yes")
+# Single env variable: RESEND_API_KEY
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-# Parse boolean env vars using strict whitelist
-MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "False").lower() in ("true", "1", "t", "yes")
-MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "True").lower() in ("true", "1", "t", "yes")
-
-# Determine if SMTP is usable
-SMTP_CONFIGURED = bool(MAIL_SERVER and MAIL_PORT)
-
-_conf = None
-if SMTP_CONFIGURED:
-    try:
-        _conf = ConnectionConfig(
-            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-            MAIL_FROM=os.getenv("MAIL_FROM", MAIL_USERNAME or "noreply@elan.com"),
-            MAIL_PORT=int(os.getenv("MAIL_PORT", MAIL_PORT)),
-            MAIL_SERVER=os.getenv("MAIL_SERVER", MAIL_SERVER),
-            MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME", "Élan Pure Commerce"),
-            MAIL_STARTTLS=MAIL_STARTTLS,
-            MAIL_SSL_TLS=MAIL_SSL_TLS,
-            USE_CREDENTIALS=True,
-            VALIDATE_CERTS=True,
-        )
-    except Exception as e:
-        _conf = None
-        print("[EMAIL] ConnectionConfig initialization failed:", e)
+if not RESEND_API_KEY:
+    print("[EMAIL] RESEND_API_KEY no está definida; los correos se registrarán en logs.")
 
 
 def _build_reset_html(reset_token: str) -> str:
@@ -47,7 +19,7 @@ def _build_reset_html(reset_token: str) -> str:
     <div style="max-width:600px; margin:40px auto; padding:30px; border:1px solid #30363d; border-radius:12px; background:#161b22; color:#e6edf3;">
         <h2 style="color:#1e8a5e; text-align:center; margin-bottom:24px;">Recuperación de Contraseña</h2>
         <p>Hola,</p>
-        <p>Has solicitado restablecer tu contraseña en <strong>Élan Pure Commerce Manager</strong>.</p>
+        <p>Has solicitado restablecer tu contraseña en <strong>Élan Pure Commerce</strong>.</p>
         <p>Tu código de verificación de un solo uso (OTP) es:</p>
         <div style="text-align:center; margin:30px 0;">
             <span style="font-size:36px; font-weight:bold; letter-spacing:8px; color:#fff; background:#1e8a5e; padding:12px 24px; border-radius:8px; display:inline-block;">
@@ -87,6 +59,38 @@ def _build_activation_html(backend_url: str, token: str) -> str:
     """
 
 
+async def _send_via_resend(to_email: str, subject: str, html_body: str) -> bool:
+    print("=" * 60)
+    print(f"  [EMAIL] Enviando via Resend")
+    print(f"  Para:   {to_email}")
+    print(f"  Asunto: {subject}")
+    print("=" * 60)
+
+    # Enforce mandatory from address
+    from_email = "onboarding@resend.dev"
+
+    if _resend_client is None:
+        print("  ⚠️  Resend client no configurado (RESEND_API_KEY faltante). Se imprimirá el HTML en logs en lugar de enviar.")
+        print(html_body)
+        return True
+
+    try:
+        def _send() -> Dict[str, Any]:
+            return _resend_client.emails.send(
+                from_=from_email,
+                to=to_email,
+                subject=subject,
+                html=html_body,
+            )
+
+        result = await run_in_threadpool(_send)
+        print(f"  ✅  Email enviado a {to_email} via Resend. Response: {result}")
+        return True
+    except Exception as e:
+        print(f"  ❌  Error enviando email via Resend: {e}")
+        return True
+
+
 async def send_reset_email(to_email: str, reset_token: str) -> bool:
     print("=" * 60)
     print(f"  [EMAIL] OTP GENERADO")
@@ -94,30 +98,13 @@ async def send_reset_email(to_email: str, reset_token: str) -> bool:
     print(f"  Código: {reset_token}")
     print("=" * 60)
 
-    if not SMTP_CONFIGURED or _conf is None:
-        print("  ⚠️  SMTP no configurado. Usa el código de arriba.")
-        return True
-
-    try:
-        html_body = _build_reset_html(reset_token)
-        message = MessageSchema(
-            subject="Código de Recuperación - Élan Pure",
-            recipients=[to_email],
-            body=html_body,
-            subtype=MessageType.html,
-        )
-        print(f"⚙️ SMTP CONFIG -> Port: {MAIL_PORT}, STARTTLS: {MAIL_STARTTLS}, SSL/TLS: {MAIL_SSL_TLS}")
-        fm = FastMail(_conf)
-        await fm.send_message(message)
-        print(f"  ✅  Correo enviado a {to_email}")
-        return True
-    except Exception as e:
-        print(f"  ❌  Error al enviar correo: {e}")
-        return True
+    html_body = _build_reset_html(reset_token)
+    subject = "Código de Recuperación - Élan Pure"
+    return await _send_via_resend(to_email, subject, html_body)
 
 
 async def send_activation_email(to_email: str, token: str) -> bool:
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    backend_url = BACKEND_URL
     print("=" * 60)
     print(f"  [EMAIL] EMAIL DE ACTIVACION GENERADO")
     print(f"  Para:   {to_email}")
@@ -125,24 +112,6 @@ async def send_activation_email(to_email: str, token: str) -> bool:
     print(f"  Backend URL usada: {backend_url}")
     print("=" * 60)
 
-    if not SMTP_CONFIGURED or _conf is None:
-        print("  ⚠️  SMTP no configurado. Imprimiendo enlace de activación en logs:")
-        print(f"  {backend_url.rstrip('/')}/api/users/activate/{token}")
-        return True
-
-    try:
-        html_body = _build_activation_html(backend_url, token)
-        message = MessageSchema(
-            subject="Activa tu cuenta - Élan Pure",
-            recipients=[to_email],
-            body=html_body,
-            subtype=MessageType.html,
-        )
-        print(f"⚙️ SMTP CONFIG -> Port: {MAIL_PORT}, STARTTLS: {MAIL_STARTTLS}, SSL/TLS: {MAIL_SSL_TLS}")
-        fm = FastMail(_conf)
-        await fm.send_message(message)
-        print(f"  ✅  Email de activación enviado a {to_email}")
-        return True
-    except Exception as e:
-        print(f"  ❌  Error al enviar correo: {e}")
-        return True
+    html_body = _build_activation_html(backend_url, token)
+    subject = "Activa tu cuenta - Élan Pure"
+    return await _send_via_resend(to_email, subject, html_body)
