@@ -11,11 +11,11 @@ MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
 def str_to_bool(val):
     if isinstance(val, bool):
         return val
-    return str(val).lower() in ("true", "1", "yes")
+    return str(val).lower() in ("true", "1", "t", "yes")
 
-# Parse boolean env vars strictly
-MAIL_STARTTLS = str_to_bool(os.getenv("MAIL_STARTTLS", "False"))
-MAIL_SSL_TLS = str_to_bool(os.getenv("MAIL_SSL_TLS", "True"))
+# Parse boolean env vars using strict whitelist
+MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "False").lower() in ("true", "1", "t", "yes")
+MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "True").lower() in ("true", "1", "t", "yes")
 
 # Determine if SMTP is usable
 SMTP_CONFIGURED = bool(MAIL_SERVER and MAIL_PORT)
@@ -106,6 +106,7 @@ async def send_reset_email(to_email: str, reset_token: str) -> bool:
             body=html_body,
             subtype=MessageType.html,
         )
+        print(f"⚙️ SMTP CONFIG -> Port: {MAIL_PORT}, STARTTLS: {MAIL_STARTTLS}, SSL/TLS: {MAIL_SSL_TLS}")
         fm = FastMail(_conf)
         await fm.send_message(message)
         print(f"  ✅  Correo enviado a {to_email}")
@@ -137,6 +138,7 @@ async def send_activation_email(to_email: str, token: str) -> bool:
             body=html_body,
             subtype=MessageType.html,
         )
+        print(f"⚙️ SMTP CONFIG -> Port: {MAIL_PORT}, STARTTLS: {MAIL_STARTTLS}, SSL/TLS: {MAIL_SSL_TLS}")
         fm = FastMail(_conf)
         await fm.send_message(message)
         print(f"  ✅  Email de activación enviado a {to_email}")
