@@ -8,7 +8,9 @@ from starlette.concurrency import run_in_threadpool
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
-if not RESEND_API_KEY:
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+else:
     print("[EMAIL] RESEND_API_KEY no está definida; los correos se registrarán en logs.")
 
 
@@ -69,19 +71,20 @@ async def _send_via_resend(to_email: str, subject: str, html_body: str) -> bool:
     # Enforce mandatory from address
     from_email = "onboarding@resend.dev"
 
-    if _resend_client is None:
-        print("  ⚠️  Resend client no configurado (RESEND_API_KEY faltante). Se imprimirá el HTML en logs en lugar de enviar.")
+    if not RESEND_API_KEY:
+        print("  ⚠️  RESEND_API_KEY no configurada. Se imprimirá el HTML en logs en lugar de enviar.")
         print(html_body)
         return True
 
     try:
         def _send() -> Dict[str, Any]:
-            return _resend_client.emails.send(
-                from_=from_email,
-                to=to_email,
-                subject=subject,
-                html=html_body,
-            )
+            params = {
+                "from": from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body,
+            }
+            return resend.Emails.send(params)
 
         result = await run_in_threadpool(_send)
         print(f"  ✅  Email enviado a {to_email} via Resend. Response: {result}")
