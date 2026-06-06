@@ -48,8 +48,6 @@ export default function CarruselPromo() {
             }}>
               {/* Fallback visual if image not found */}
               <div className="banner-fallback" style={{ textAlign: 'center', color: 'var(--color-brand-primary)' }}>
-                <h3>Élan Pure</h3>
-                <p>Descubre nuestra nueva línea</p>
               </div>
             </div>
           </SwiperSlide>
