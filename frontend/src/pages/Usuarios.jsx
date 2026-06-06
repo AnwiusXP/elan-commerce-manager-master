@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getUsers, createUser, deleteUser, updateUserStatus, updateUser } from '../services/userService'
+import { ArrowLeft } from 'lucide-react'
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
@@ -16,6 +17,7 @@ function Usuarios() {
   const [editEmail, setEditEmail] = useState('')
   const [editRol, setEditRol] = useState('')
   const [editCargando, setEditCargando] = useState(false)
+  const [mobilePanelUserId, setMobilePanelUserId] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -106,9 +108,9 @@ function Usuarios() {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="admin-layout" style={{ display: 'flex' }}>
       <Sidebar active="Usuarios" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
+      <div className="admin-content">
         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '28px' }}>Gestión de Usuarios</h1>
 
         {mensaje.text && (
@@ -168,8 +170,51 @@ function Usuarios() {
             </button>
           </form>
         </div>
+        {/* Mobile full-screen user panel */}
+        {mobilePanelUserId && (() => {
+          const u = usuarios.find(x => x.id === mobilePanelUserId)
+          if (!u) return null
+          return (
+            <div className="admin-mobile-panel-overlay" onClick={() => setMobilePanelUserId(null)}>
+              <div className="admin-mobile-panel" onClick={e => e.stopPropagation()}>
+                <div className="panel-header">
+                  <button onClick={() => setMobilePanelUserId(null)} style={{ background: 'none', border: 'none', color: '#8b949e', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <ArrowLeft size={18} /> Volver
+                  </button>
+                  <div style={{ fontWeight: 700, color: '#e6edf3' }}>{u.username}</div>
+                </div>
+                <div>
+                  <h4 style={{ color: '#e6edf3', marginBottom: 6 }}>Usuario #{u.id}</h4>
+                  <div style={{ color: '#c9d1d9', marginBottom: 10 }}>{u.email}</div>
+                  <div style={{ marginBottom: 12 }}>
+                    <span style={{ background: '#161b22', border: '1px solid #30363d', padding: '6px 10px', borderRadius: 8 }}>{u.rol}</span>
+                  </div>
 
-        <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => { abrirEditModal(u); setMobilePanelUserId(null) }} style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8 }}>Editar</button>
+                    <button onClick={() => { toggleUserStatus(u); setMobilePanelUserId(null) }} style={{ background: u.is_active ? 'transparent' : '#2ea043', color: u.is_active ? '#8b949e' : '#fff', border: '1px solid #30363d', padding: '10px 14px', borderRadius: 8 }}>{u.is_active ? 'Desactivar' : 'Activar'}</button>
+                    <button onClick={() => { if (window.confirm('¿Eliminar este usuario?')) { handleDelete(u.id); setMobilePanelUserId(null) } }} style={{ background: 'transparent', color: '#f85149', border: '1px solid rgba(248,81,73,0.2)', padding: '10px 14px', borderRadius: 8 }}>Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Mobile list view */}
+        <div className="admin-mobile-list">
+          {usuarios.map(u => (
+            <div key={u.id} className="admin-mobile-item" onClick={() => setMobilePanelUserId(u.id)}>
+              <div className="meta">
+                <div className="line-1">#{u.id} — {u.username}</div>
+                <div className="line-2">{u.email}</div>
+              </div>
+              <div style={{ color: u.is_active ? '#3fb950' : '#f85149', fontWeight: 700 }}>{u.is_active ? 'Activo' : 'Inactivo'}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="table-responsive" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#21262d', textAlign: 'left' }}>

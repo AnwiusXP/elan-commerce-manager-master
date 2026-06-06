@@ -4,6 +4,9 @@ import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
 import { estaAutenticado, obtenerUsuario, logout } from '../services/authService'
 import { getCategorias } from '../services/categoriaService'
+import { useCarrito } from '../context/CarritoContext'
+import CarruselPromo from '../components/CarruselPromo'
+import CarritoDrawer from '../components/CarritoDrawer'
 
 function Catalogo() {
   const [productos, setProductos] = useState([])
@@ -11,19 +14,12 @@ function Catalogo() {
   const [categoriaActiva, setCategoriaActiva] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [carrito, setCarrito] = useState([])
+  const { agregarAlCarrito: agregarAlContexto } = useCarrito()
   const autenticado = estaAutenticado()
   const [usuario] = useState(obtenerUsuario)
   
   // Estado para la Vista Previa (Modal)
   const [previewItem, setPreviewItem] = useState(null)
-
-  useEffect(() => {
-    cargarCatalogo()
-    cargarCategorias()
-    const c = JSON.parse(localStorage.getItem('carrito')) || []
-    setCarrito(c)
-  }, [])
 
   async function cargarCategorias() {
     try {
@@ -51,34 +47,19 @@ function Catalogo() {
     setCargando(false)
   }
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarCatalogo()
+    cargarCategorias()
+  }, [])
+
   const filtrados = productos.filter(p => {
     if (categoriaActiva && p.categoria_id !== categoriaActiva) return false
     return (p?.nombre || "").toLowerCase().includes((busqueda || "").toLowerCase())
   })
 
-  const totalCarrito = carrito.reduce((a, it) => a + it.cantidad, 0)
-
   function agregarAlCarrito(p) {
-    const existe = carrito.find(it => it.nombre === p.nombre)
-    let nuevo
-    if (existe) {
-      // Check stock limit
-      if (existe.cantidad >= p.stock) {
-        alert(`❌ No puedes agregar más. El stock máximo es de ${p.stock} unidades.`)
-        return
-      }
-      nuevo = carrito.map(it => it.nombre === p.nombre ? { ...it, cantidad: it.cantidad + 1 } : it)
-    } else {
-      if (p.stock < 1) {
-        alert(`❌ Producto sin stock disponible.`)
-        return
-      }
-      nuevo = [...carrito, { id: p.id, producto_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1 }]
-    }
-    setCarrito(nuevo)
-    localStorage.setItem('carrito', JSON.stringify(nuevo))
-    
-    // Auto-close modal if it's open
+    agregarAlContexto(p)
     if (previewItem) {
       setPreviewItem(null)
     }
@@ -87,28 +68,13 @@ function Catalogo() {
   return (
     <div className="theme-public-clean">
       
-      <NavbarPublico totalCarrito={totalCarrito} busqueda={busqueda} setBusqueda={setBusqueda} showSearch={true} usuario={usuario} onLogout={() => { logout(); window.location.reload() }} />
+      <NavbarPublico busqueda={busqueda} setBusqueda={setBusqueda} showSearch={true} usuario={usuario} onLogout={() => { logout(); window.location.reload() }} />
 
-      {/* Hero */}
-      <div style={{ 
-        background: 'linear-gradient(135deg, var(--color-bg-light) 0%, var(--color-secondary-soft) 100%)', 
-        color: 'var(--color-text-main)', textAlign: 'center', padding: '70px 32px',
-        borderBottom: '1px solid var(--color-border)'
-      }}>
-        <a href="#productos" style={{
-          background: 'var(--color-brand-primary)', color: '#fff', borderRadius: '30px',
-          padding: '14px 36px', fontWeight: '600', textDecoration: 'none',
-          display: 'inline-block', transition: 'all 0.2s', boxShadow: 'var(--shadow-md)'
-        }}
-        onMouseEnter={(e) => { e.target.style.background = 'var(--color-brand-primary-hover)'; e.target.style.transform = 'translateY(-2px)' }}
-        onMouseLeave={(e) => { e.target.style.background = 'var(--color-brand-primary)'; e.target.style.transform = 'translateY(0)' }}
-        >
-          Explorar Catálogo
-        </a>
-      </div>
+      {/* Hero / Carrusel */}
+      <CarruselPromo />
 
       {/* Filtro por Categorías */}
-      <div style={{ padding: '24px 32px 0', maxWidth: '1200px', margin: '0 auto' }}>
+      <div className="catalog-category-filter" style={{ padding: '24px 32px 0', maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setCategoriaActiva(null)}
@@ -141,7 +107,7 @@ function Catalogo() {
       </div>
 
       {/* Productos */}
-      <div style={{ padding: '32px 32px 56px', maxWidth: '1200px', margin: '0 auto' }} id="productos">
+      <div className="catalog-products-section" style={{ padding: '32px 32px 56px', maxWidth: '1200px', margin: '0 auto' }} id="productos">
         <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0d1117', marginBottom: '32px' }}>
           Lo más vendido
         </h3>
@@ -155,7 +121,7 @@ function Catalogo() {
             No se encontraron productos disponibles.{categoriaActiva ? ' Intenta con otra categoría.' : ''}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
+          <div id="productos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
             {filtrados.map((p, i) => (
               <div key={i} style={{
                 background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px',
@@ -173,13 +139,22 @@ function Catalogo() {
                     alt={p.nombre}
                     style={{ maxHeight: '100%', objectFit: 'cover', borderRadius: '0' }}
                   />
-                  {p.stock <= 5 && (
+                  {usuario?.role === 'admin' && p.stock <= 5 && (
                     <div style={{
                       position: 'absolute', top: '12px', right: '12px',
                       background: 'rgba(248, 81, 73, 0.9)', color: '#fff',
                       padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700'
                     }}>
                       ¡Solo quedan {p.stock}!
+                    </div>
+                  )}
+                  {usuario?.role !== 'admin' && p.stock <= 0 && (
+                    <div style={{
+                      position: 'absolute', top: '12px', right: '12px',
+                      background: 'rgba(248, 81, 73, 0.9)', color: '#fff',
+                      padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700'
+                    }}>
+                      ❌ Agotado
                     </div>
                   )}
                 </div>
@@ -223,6 +198,7 @@ function Catalogo() {
       {/* --- Modal Vista Previa --- */}
       {previewItem && (
         <div 
+          className="preview-overlay"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(13, 17, 23, 0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
@@ -231,6 +207,7 @@ function Catalogo() {
           onClick={() => setPreviewItem(null)}
         >
           <div 
+            className="preview-modal"
             style={{
               background: '#fff', borderRadius: '24px', overflow: 'hidden',
               display: 'flex', width: '100%', maxWidth: '850px',
@@ -239,7 +216,7 @@ function Catalogo() {
             onClick={e => e.stopPropagation()}
           >
             {/* Left side: Image */}
-            <div style={{ flex: '1', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+            <div className="preview-modal-media" style={{ flex: '1', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
               <ProductImage 
                 id={previewItem.id} 
                 alt={previewItem.nombre}
@@ -248,7 +225,7 @@ function Catalogo() {
             </div>
             
             {/* Right side: Details */}
-            <div style={{ flex: '1', padding: '48px 40px', display: 'flex', flexDirection: 'column' }}>
+            <div className="preview-modal-content" style={{ flex: '1', padding: '48px 40px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <span style={{ color: 'var(--color-brand-primary)', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   {(previewItem?.categoria) || 'Sin categoría'}
@@ -261,7 +238,7 @@ function Catalogo() {
                 </button>
               </div>
               
-              <h2 style={{ fontSize: '2.2rem', color: '#212529', fontWeight: '800', lineHeight: '1.2', marginBottom: '16px' }}>
+              <h2 className="preview-modal-title" style={{ fontSize: '2.2rem', color: '#212529', fontWeight: '800', lineHeight: '1.2', marginBottom: '16px' }}>
                 {previewItem.nombre}
               </h2>
               
@@ -278,7 +255,7 @@ function Catalogo() {
                   <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: previewItem.stock > 5 ? '#2dd48b' : '#f85149' }}></div>
                     <span style={{ color: '#495057', fontWeight: '600', fontSize: '0.95rem' }}>
-                      {previewItem.stock} unidades en stock
+                      {usuario?.role === 'admin' ? `${previewItem.stock} unidades en stock` : (previewItem.stock > 0 ? '✅ Disponible' : '❌ Agotado')}
                     </span>
                   </div>
                   
@@ -303,6 +280,7 @@ function Catalogo() {
           </div>
         </div>
       )}
+      <CarritoDrawer />
     </div>
   )
 }

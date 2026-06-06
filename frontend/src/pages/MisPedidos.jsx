@@ -142,7 +142,7 @@ function MisPedidos() {
 
                   {isExpanded && (
                     <div style={{ borderTop: '1px solid var(--color-border)', padding: '20px', background: '#f8fafc' }}>
-                      <div style={{ border: '1px solid var(--color-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                      <div className="table-responsive" style={{ border: '1px solid var(--color-border)', borderRadius: '8px', overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                           <thead style={{ background: '#ffffff' }}>
                             <tr>

@@ -211,10 +211,10 @@ function Reportes() {
   });
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117', color: '#c9d1d9' }}>
+    <div className="admin-layout" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0d1117', color: '#c9d1d9' }}>
       <Sidebar active="Reportes" />
 
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
+      <div className="admin-content">
         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '28px' }}>
           Inteligencia de Negocios (IA)
         </h1>

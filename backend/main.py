@@ -96,6 +96,8 @@ LOCAL_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
+    "http://192.168.100.130:5173",
+    "http://192.168.100.130:3000",
 ]
 
 # Leer FRONTEND_URL desde variable de entorno (Render inyecta esta variable)
@@ -1161,9 +1163,9 @@ async def create_user(
 
     # Verificar duplicados
     if get_user_by_username(db, user.username):
-        raise HTTPException(status_code=400, detail="El username ya esta registrado.")
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya está registrado. Prueba con otro.")
     if get_user_by_email(db, user.email):
-        raise HTTPException(status_code=400, detail="El email ya esta registrado.")
+        raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado. ¿Ya tienes una cuenta?")
 
     token = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(days=7)
@@ -1190,7 +1192,7 @@ async def create_user(
         )
         db.commit()
         raise HTTPException(
-            status_code=400, detail="Conflicto de llave unica al crear usuario."
+            status_code=400, detail="Este usuario o correo ya está registrado. Por favor intenta con datos diferentes."
         )
 
     # Use BACKEND_URL for activation links (fallback to localhost)

@@ -5,7 +5,7 @@
   --border-ui: #e2e8f0;
 }
 
-.admin-layout {
+.reportes-legacy-admin-layout {
   display: flex;
   min-height: 100vh;
   background-color: var(--bg-main);

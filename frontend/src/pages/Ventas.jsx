@@ -91,10 +91,10 @@ function Ventas() {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="admin-layout" style={{ display: 'flex' }}>
       <Sidebar active="Ventas" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+      <div className="admin-content">
+        <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>Gestión de Ventas</h1>
           <div style={{ display: 'flex', gap: '10px', background: '#0d1117', padding: '4px', borderRadius: '8px', border: '1px solid #30363d' }}>
             <button 
@@ -112,7 +112,7 @@ function Ventas() {
           cargando ? (
             <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando productos...</div>
           ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
+          <div className="admin-split-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '28px' }}>
 
               {exito && (
@@ -179,7 +179,7 @@ function Ventas() {
           cargandoHistorial ? (
             <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
           ) : (
-            <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '24px' }}>
+            <div className="table-responsive" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '24px', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ color: '#8b949e', fontSize: '0.85rem', textTransform: 'uppercase', borderBottom: '1px solid #30363d' }}>

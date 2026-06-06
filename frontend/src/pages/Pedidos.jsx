@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { listarPedidosAdmin, aprobarPedidoAdmin, cambiarEstadoPedidoAdmin } from '../services/pedidoService'
+import { ArrowLeft } from 'lucide-react'
 
 function Pedidos() {
   const [pedidos, setPedidos] = useState([])
@@ -8,6 +9,7 @@ function Pedidos() {
   const [filtroActivo, setFiltroActivo] = useState('TODOS')
   const [error, setError] = useState('')
   const [expandidoId, setExpandidoId] = useState(null)
+  const [mobilePanelId, setMobilePanelId] = useState(null)
 
   const TABS = [
     { key: 'TODOS', label: 'Todos', apiStatus: null },
@@ -103,11 +105,11 @@ function Pedidos() {
   }
 
   return (
-    <div style={{ display: 'flex', background: '#0d1117', minHeight: '100vh', color: '#c9d1d9' }}>
+    <div className="admin-layout" style={{ display: 'flex', background: '#0d1117', minHeight: '100vh', color: '#c9d1d9' }}>
       <Sidebar active="Pedidos" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1, boxSizing: 'border-box' }}>
+      <div className="admin-content">
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0, color: '#e6edf3' }}>
               Gestión de Pedidos
@@ -173,8 +175,21 @@ function Pedidos() {
           })}
         </div>
 
+        {/* Mobile list (ID/Guía) */}
+        <div className="admin-mobile-list">
+          {pedidosFiltrados.map(p => (
+            <div key={p.id} className="admin-mobile-item" onClick={() => setMobilePanelId(p.id)}>
+              <div className="meta">
+                <div className="line-1">{p.guia_rastreo}</div>
+                <div className="line-2">{p.cliente_nombre} · ${p.total?.toLocaleString('es-CO')}</div>
+              </div>
+              <div style={{ color: getBadgeColor(p.estado), fontWeight: 700 }}>{TABS.find(t => t.key === p.estado)?.label || p.estado}</div>
+            </div>
+          ))}
+        </div>
+
         {/* Tabla */}
-        <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="table-responsive" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', overflowX: 'auto' }}>
           <div style={{ display: 'flex', padding: '12px 16px', borderBottom: '1px solid #30363d', fontWeight: '600', color: '#8b949e', fontSize: '0.85rem' }}>
             <div style={{ width: '130px' }}>Guía</div>
             <div style={{ flex: 1 }}>Cliente</div>
@@ -249,7 +264,7 @@ function Pedidos() {
                   {/* Fila expandida */}
                   {isExpanded && (
                     <div style={{ background: '#0d1117', padding: '24px', borderTop: '1px solid #30363d' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+                      <div className="admin-split-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                         
                         {/* Datos de envío y Nequi */}
                         <div>
@@ -271,7 +286,7 @@ function Pedidos() {
                         {/* Items del pedido */}
                         <div>
                           <h4 style={{ color: '#e6edf3', margin: '0 0 16px 0', fontSize: '0.95rem' }}>Productos</h4>
-                          <div style={{ border: '1px solid #30363d', borderRadius: '8px', overflow: 'hidden' }}>
+                          <div className="table-responsive" style={{ border: '1px solid #30363d', borderRadius: '8px', overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                               <thead style={{ background: '#161b22', color: '#8b949e', textAlign: 'left' }}>
                                 <tr>
@@ -301,6 +316,45 @@ function Pedidos() {
             })
           )}
         </div>
+
+        {/* Mobile full-screen panel */}
+        {mobilePanelId && (() => {
+          const p = pedidos.find(x => x.id === mobilePanelId)
+          if (!p) return null
+          return (
+            <div className="admin-mobile-panel-overlay" onClick={() => setMobilePanelId(null)}>
+              <div className="admin-mobile-panel" onClick={e => e.stopPropagation()}>
+                <div className="panel-header">
+                  <button onClick={() => setMobilePanelId(null)} style={{ background: 'none', border: 'none', color: '#8b949e', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <ArrowLeft size={18} /> Volver
+                  </button>
+                  <div style={{ fontWeight: 700, color: '#e6edf3' }}>{p.guia_rastreo}</div>
+                </div>
+                <div>
+                  <h4 style={{ marginTop: 8, marginBottom: 6, color: '#e6edf3' }}>Cliente</h4>
+                  <div style={{ color: '#c9d1d9', marginBottom: 12 }}>{p.cliente_nombre} · {p.cliente_ciudad}</div>
+
+                  <h4 style={{ marginTop: 8, marginBottom: 6, color: '#e6edf3' }}>Productos</h4>
+                  <div style={{ marginBottom: 12 }}>
+                    {p.items?.map((it, i) => (
+                      <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid #21262d' }}>
+                        <div style={{ fontWeight: 700, color: '#e6edf3' }}>{it.nombre_producto}</div>
+                        <div style={{ color: '#8b949e' }}>{it.cantidad} × ${it.subtotal?.toLocaleString('es-CO')}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                    {p.estado === 'PENDIENTE_NEQUI' && (
+                      <button onClick={async () => { await aprobarPedidoAdmin(p.id); setMobilePanelId(null); cargarPedidos() }} style={{ background: '#2ea043', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8 }}>Aprobar</button>
+                    )}
+                    <button onClick={() => { setMobilePanelId(null); }} style={{ background: 'transparent', color: '#8b949e', border: '1px solid #30363d', padding: '10px 14px', borderRadius: 8 }}>Cerrar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
       </div>
     </div>

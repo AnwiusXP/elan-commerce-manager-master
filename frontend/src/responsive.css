@@ -1,0 +1,512 @@
+/* Responsive styles for Elan Commerce Manager */
+
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-only lists should be hidden by default on desktop */
+.admin-mobile-list {
+  display: none !important;
+}
+
+.table-responsive > table {
+  min-width: 0;
+  table-layout: auto;
+  width: 100%;
+}
+
+.admin-layout {
+  min-height: 100vh;
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+/* Desktop defaults: sidebar + content spacing */
+.admin-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 200px;
+}
+
+.admin-content {
+  margin-left: 200px;
+  padding: 32px;
+  flex: 1;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.admin-mobile-bar {
+  display: none;
+}
+
+.admin-sidebar {
+  z-index: 900;
+}
+
+.admin-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-sidebar-close {
+  display: none;
+}
+
+.admin-sidebar-link {
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.admin-sidebar-link:hover {
+  background: rgba(0, 162, 154, 0.08) !important;
+  color: #e6edf3 !important;
+}
+
+.admin-logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .navbar-publico {
+    padding: 12px 16px !important;
+    justify-content: space-between;
+    flex-wrap: nowrap !important;
+  }
+
+  .navbar-search,
+  .navbar-desktop-actions {
+    display: none !important;
+  }
+
+  .navbar-mobile-actions {
+    display: flex !important;
+    margin-left: auto;
+  }
+
+  .navbar-mobile-menu {
+    animation: mobileMenuSlideDown 0.22s ease;
+  }
+
+  .catalog-category-filter,
+  .catalog-products-section,
+  .cart-page-content {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  #productos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 18px !important;
+  }
+
+  .theme-public-clean .product-card {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .carrusel-container {
+    padding: 16px 16px 0 !important;
+  }
+
+  .swiper-slide-custom {
+    height: 250px !important;
+  }
+
+  .preview-modal {
+    max-height: calc(100vh - 40px);
+    overflow-y: auto !important;
+    flex-direction: column !important;
+    max-width: 560px !important;
+    min-height: 0 !important;
+  }
+
+  .preview-modal-media {
+    min-height: 260px;
+    padding: 28px !important;
+  }
+
+  .preview-modal-content {
+    padding: 28px !important;
+  }
+
+  .preview-modal-title {
+    font-size: 1.65rem !important;
+  }
+
+  .cart-page-grid,
+  .checkout-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .checkout-summary {
+    position: static !important;
+  }
+
+  .carrito-drawer {
+    width: 320px !important;
+  }
+
+  .table-responsive > table,
+  table {
+    min-width: 0;
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .admin-layout {
+    display: block !important;
+    min-height: 100vh;
+  }
+
+  .admin-mobile-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 850;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 60px;
+    padding: 10px 16px;
+    background: rgba(13, 17, 23, 0.96);
+    border-bottom: 1px solid #30363d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Ensure categories filter remains visible and scrollable on mobile */
+  .catalog-category-filter {
+    display: block !important;
+    padding: 12px 16px 0 !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  .catalog-category-filter > div {
+    display: flex !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding-bottom: 6px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .catalog-category-filter button {
+    flex: 0 0 auto !important;
+  }
+
+  /* Mobile admin list view (replaces wide tables) */
+  .admin-mobile-list {
+    display: block !important;
+    margin-bottom: 12px;
+  }
+
+  .admin-mobile-list .admin-mobile-item {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .admin-mobile-item .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .admin-mobile-item .meta .line-1 { font-weight: 700; color: #e6edf3; }
+  .admin-mobile-item .meta .line-2 { color: #8b949e; font-size: 0.85rem }
+
+  /* Full-screen overlay panel for selected item */
+  .admin-mobile-panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1200;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 56px;
+  }
+
+  .admin-mobile-panel {
+    width: 100%;
+    height: calc(100vh - 56px);
+    background: #0d1117;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    overflow-y: auto;
+    padding: 18px;
+    box-sizing: border-box;
+  }
+
+  .admin-mobile-panel .panel-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
+  }
+
+  /* Hide desktop tables on mobile only when a mobile list replacement exists */
+  /* This prevents hiding tables on pages that don't have a mobile list (e.g. Productos, Categorías) */
+  .admin-mobile-list + .table-responsive,
+  .admin-mobile-list ~ .table-responsive {
+    display: none !important;
+  }
+
+
+  .admin-mobile-bar span {
+    display: block;
+    color: #8b949e;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .admin-mobile-bar strong {
+    display: block;
+    color: #e6edf3;
+    font-size: 0.98rem;
+    line-height: 1.2;
+  }
+
+  .admin-menu-button,
+  .admin-sidebar-close {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    background: #161b22;
+    color: #e6edf3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .admin-sidebar {
+    top: 0 !important;
+    left: 0 !important;
+    width: min(82vw, 300px) !important;
+    max-width: 300px;
+    height: 100vh;
+    min-height: 100vh !important;
+    padding: 18px 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    box-shadow: 18px 0 36px rgba(0, 0, 0, 0.28);
+    z-index: 1001;
+  }
+
+  .admin-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .admin-sidebar-close {
+    display: inline-flex;
+  }
+
+  .admin-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    border: 0;
+    background: rgba(0, 0, 0, 0.56);
+    cursor: pointer;
+  }
+
+  .admin-content {
+    margin-left: 0 !important;
+    padding: 84px 16px 24px !important;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-page-header {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 14px;
+  }
+
+  .admin-page-header > div {
+    flex-wrap: wrap;
+  }
+
+  .admin-stats-grid,
+  .admin-split-grid {
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+  }
+
+  .admin-content form {
+    flex-direction: column;
+  }
+
+  .admin-content form input,
+  .admin-content form select,
+  .admin-content form button {
+    width: 100%;
+  }
+
+  .admin-content .table-responsive {
+    max-width: calc(100vw - 32px);
+  }
+
+  .admin-content .table-responsive > div {
+    min-width: 0 !important;
+  }
+
+  /* Override inline fixed widths inside responsive tables on small viewports */
+  .table-responsive [style] {
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  /* Make table cells wrap instead of causing horizontal scroll */
+  .table-responsive th,
+  .table-responsive td {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-publico {
+    padding: 10px 12px !important;
+  }
+
+  .theme-public-clean h1 {
+    font-size: 1.35rem !important;
+  }
+
+  .theme-public-clean h3 {
+    font-size: 1.2rem !important;
+  }
+
+  .catalog-category-filter {
+    padding-top: 18px !important;
+  }
+
+  .catalog-category-filter > div {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .catalog-category-filter button {
+    flex: 0 0 auto;
+  }
+
+  #productos-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .swiper-slide-custom {
+    height: 200px !important;
+  }
+
+  .preview-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .preview-modal {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+  }
+
+  .preview-modal-media {
+    min-height: 220px;
+    padding: 20px !important;
+  }
+
+  .preview-modal-content {
+    padding: 24px 20px !important;
+  }
+
+  .preview-modal-title {
+    font-size: 1.45rem !important;
+  }
+
+  .cart-page-content,
+  .checkout-page-content {
+    margin-top: 24px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .cart-page-item {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 14px;
+  }
+
+  .cart-page-item-info {
+    width: 100%;
+  }
+
+  .cart-summary,
+  .checkout-card,
+  .checkout-summary {
+    padding: 20px !important;
+  }
+
+  .carrito-drawer {
+    width: 100% !important;
+  }
+
+  .admin-mobile-bar {
+    min-height: 56px;
+    padding: 8px 12px;
+  }
+
+  .admin-content {
+    padding: 76px 12px 20px !important;
+  }
+
+  .admin-content h1 {
+    font-size: 1.25rem !important;
+  }
+
+  .admin-content .table-responsive {
+    max-width: calc(100vw - 24px);
+  }
+
+  .admin-menu-button,
+  .admin-sidebar-close {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@keyframes mobileMenuSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

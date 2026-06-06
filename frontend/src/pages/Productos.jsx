@@ -76,10 +76,10 @@ function Productos() {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="admin-layout" style={{ display: 'flex' }}>
       <Sidebar active="Productos" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+      <div className="admin-content">
+        <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Gestión de Productos</h1>
           <button
             onClick={() => setModal(true)}
@@ -107,7 +107,7 @@ function Productos() {
         {cargando ? (
           <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando productos...</div>
         ) : (
-          <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', overflow: 'hidden' }}>
+          <div className="table-responsive" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ background: '#21262d' }}>
                 <tr>

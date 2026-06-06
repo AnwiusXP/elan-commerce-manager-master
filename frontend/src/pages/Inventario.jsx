@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
+import { ArrowLeft } from 'lucide-react'
 import {
   getInventarioResumen,
   getInventarioProductos,
@@ -66,6 +67,7 @@ function Inventario() {
   const [ajusteForm, setAjusteForm] = useState({ tipo: 'ENTRADA_COMPRA', cantidad: '', nota: '' })
   const [ajusteError, setAjusteError] = useState('')
   const [ajusteExito, setAjusteExito] = useState(false)
+  const [mobilePanelProductId, setMobilePanelProductId] = useState(null)
 
   useEffect(() => {
     cargarDatos()
@@ -151,9 +153,9 @@ function Inventario() {
   const maxVelocidad = Math.max(...productos.map(p => p.velocidad_diaria), 1)
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="admin-layout" style={{ display: 'flex' }}>
       <Sidebar active="Inventario" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1, minWidth: 0 }}>
+      <div className="admin-content">
 
         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '6px' }}>
           Gestión de Inventario
@@ -220,8 +222,21 @@ function Inventario() {
               ))}
             </div>
 
+            {/* Mobile list view */}
+            <div className="admin-mobile-list">
+              {productosFiltrados.map(p => (
+                <div key={p.id} className="admin-mobile-item" onClick={() => setMobilePanelProductId(p.id)}>
+                  <div className="meta">
+                    <div className="line-1">{p.nombre}</div>
+                    <div className="line-2">{p.categoria || '—'}</div>
+                  </div>
+                  <div style={{ fontWeight: 700, color: p.stock > 0 ? '#2dd48b' : '#f85149' }}>{p.stock > 0 ? 'Disponible' : 'Agotado'}</div>
+                </div>
+              ))}
+            </div>
+
             {/* ─── NIVEL 3: Tabla de Gestión ──────────────────── */}
-            <div className="inv-table-wrap">
+            <div className="inv-table-wrap table-responsive">
               <table className="inv-table">
                 <thead>
                   <tr>
@@ -459,6 +474,35 @@ function Inventario() {
           </div>
         </div>
       )}
+
+      {/* Mobile full-screen product panel */}
+      {mobilePanelProductId && (() => {
+        const p = productos.find(x => x.id === mobilePanelProductId)
+        if (!p) return null
+        return (
+          <div className="admin-mobile-panel-overlay" onClick={() => setMobilePanelProductId(null)}>
+            <div className="admin-mobile-panel" onClick={e => e.stopPropagation()}>
+              <div className="panel-header">
+                <button onClick={() => setMobilePanelProductId(null)} style={{ background: 'none', border: 'none', color: '#8b949e', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <ArrowLeft size={18} /> Volver
+                </button>
+                <div style={{ fontWeight: 700, color: '#e6edf3' }}>{p.nombre}</div>
+              </div>
+              <div>
+                <div style={{ color: '#c9d1d9', marginBottom: 8 }}>{p.categoria}</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, color: p.stock > 0 ? '#2dd48b' : '#f85149' }}>{p.stock} unidades</div>
+                <div style={{ color: '#8b949e', marginBottom: 12 }}>Mínimo: {p.stockMin}</div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => { abrirMovimientos(p.id); setMobilePanelProductId(null) }} style={{ background: 'transparent', color: '#58a6ff', border: '1px solid #30363d', padding: '10px 14px', borderRadius: 8 }}>Historial</button>
+                  <button onClick={() => { abrirAjuste(p); setMobilePanelProductId(null) }} style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8 }}>Ajustar</button>
+                  <button onClick={() => setMobilePanelProductId(null)} style={{ background: 'transparent', color: '#8b949e', border: '1px solid #30363d', padding: '10px 14px', borderRadius: 8 }}>Cerrar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

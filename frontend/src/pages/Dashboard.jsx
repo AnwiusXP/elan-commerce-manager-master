@@ -91,9 +91,9 @@ function Dashboard() {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="admin-layout" style={{ display: 'flex' }}>
       <Sidebar active="Inicio" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
+      <div className="admin-content">
         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '28px' }}>
           Dashboard
         </h1>
@@ -102,7 +102,7 @@ function Dashboard() {
           <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando datos...</div>
         ) : (
           <>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+            <div className="admin-stats-grid" style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
               <div style={statsStyle}>
                 <div style={{ color: '#8b949e', fontSize: '0.82rem', marginBottom: '8px' }}>Total Productos</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: '700' }}>{productos.length}</div>
