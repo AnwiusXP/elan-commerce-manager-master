@@ -91,10 +91,10 @@ function Ventas() {
   }
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="admin-layout" style={{ display: 'flex' }}>
       <Sidebar active="Ventas" />
-      <div style={{ marginLeft: '200px', padding: '32px', flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+      <div className="admin-content">
+        <div className="admin-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>Gestión de Ventas</h1>
           <div style={{ display: 'flex', gap: '10px', background: '#0d1117', padding: '4px', borderRadius: '8px', border: '1px solid #30363d' }}>
             <button 
@@ -112,11 +112,11 @@ function Ventas() {
           cargando ? (
             <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando productos...</div>
           ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
+          <div className="admin-split-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
             <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '28px' }}>
 
               {exito && (
-                <div style={{ background: 'rgba(30,138,94,0.1)', border: '1px solid #1e8a5e', color: '#1e8a5e', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }}>
+                <div style={{ background: 'var(--color-primary-soft)', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }}>
                   ✅ Factura generada correctamente.
                 </div>
               )}
@@ -135,7 +135,7 @@ function Ventas() {
                 <input type="number" min="1" value={cantidad} onChange={e => setCantidad(parseInt(e.target.value))} style={inputStyle} />
               </div>
 
-              <button onClick={agregarItem} style={{ background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontWeight: '600', cursor: 'pointer', width: '100%' }}>
+              <button onClick={agregarItem} style={{ background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontWeight: '600', cursor: 'pointer', width: '100%' }}>
                 + Agregar producto
               </button>
 
@@ -153,7 +153,7 @@ function Ventas() {
                       <div style={{ color: '#8b949e', fontSize: '0.85rem' }}>Cant: {it.cantidad} × ${it.precio.toLocaleString('es-CO')}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ color: '#1e8a5e', fontWeight: '600' }}>${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
+                      <span style={{ color: 'var(--color-primary)', fontWeight: '600' }}>${(it.precio * it.cantidad).toLocaleString('es-CO')}</span>
                       <button onClick={() => eliminarItem(i)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer' }}>🗑</button>
                     </div>
                   </div>
@@ -166,10 +166,10 @@ function Ventas() {
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#8b949e', fontSize: '0.9rem', marginBottom: '8px' }}>
                 <span>Subtotal</span><span>${total.toLocaleString('es-CO')}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1e8a5e', fontSize: '1.1rem', fontWeight: '700', borderTop: '1px solid #30363d', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-primary)', fontSize: '1.1rem', fontWeight: '700', borderTop: '1px solid #30363d', paddingTop: '12px' }}>
                 <span>Total</span><span>${total.toLocaleString('es-CO')}</span>
               </div>
-              <button onClick={generarFactura} style={{ background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px', fontWeight: '600', width: '100%', marginTop: '16px', cursor: 'pointer' }}>
+              <button onClick={generarFactura} style={{ background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px', fontWeight: '600', width: '100%', marginTop: '16px', cursor: 'pointer' }}>
                 Generar factura
               </button>
             </div>
@@ -179,7 +179,7 @@ function Ventas() {
           cargandoHistorial ? (
             <div style={{ color: '#8b949e', textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
           ) : (
-            <div style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '24px' }}>
+            <div className="table-responsive" style={{ background: '#161b22', border: '1px solid #30363d', borderRadius: '12px', padding: '24px', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ color: '#8b949e', fontSize: '0.85rem', textTransform: 'uppercase', borderBottom: '1px solid #30363d' }}>
@@ -196,7 +196,7 @@ function Ventas() {
                     <tr key={v.id} style={{ borderBottom: '1px solid #30363d' }}>
                       <td style={{ padding: '12px 8px', color: '#c9d1d9' }}>#{v.id}</td>
                       <td style={{ padding: '12px 8px', color: '#8b949e' }}>{new Date(v.fecha).toLocaleString('es-CO')}</td>
-                      <td style={{ padding: '12px 8px', color: '#1e8a5e', fontWeight: '600' }}>${v.total.toLocaleString('es-CO')}</td>
+                      <td style={{ padding: '12px 8px', color: 'var(--color-primary)', fontWeight: '600' }}>${v.total.toLocaleString('es-CO')}</td>
                       <td style={{ padding: '12px 8px', color: '#8b949e' }}>{v.metodo_pago}</td>
                       <td style={{ padding: '12px 8px' }}>
                         <span style={{

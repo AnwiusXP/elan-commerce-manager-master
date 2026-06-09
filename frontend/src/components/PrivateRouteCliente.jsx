@@ -1,14 +1,15 @@
 import { Navigate } from 'react-router-dom'
 import { estaAutenticado, obtenerRol } from '../services/authService'
 
-function PrivateRoute({ children, allowedRoles }) {
+function PrivateRouteCliente({ children }) {
   if (!estaAutenticado()) {
     return <Navigate to="/login" />
   }
-  if (allowedRoles?.length && !allowedRoles.includes(obtenerRol())) {
+  const rol = obtenerRol()
+  if (rol !== 'cliente_base' && rol !== 'distribuidor') {
     return <Navigate to="/" replace />
   }
   return children
 }
 
-export default PrivateRoute
+export default PrivateRouteCliente

@@ -5,7 +5,7 @@
   --border-ui: #e2e8f0;
 }
 
-.admin-layout {
+.reportes-legacy-admin-layout {
   display: flex;
   min-height: 100vh;
   background-color: var(--bg-main);
@@ -171,12 +171,12 @@
   gap: 32px;
   align-items: flex-start;
   padding-bottom: 22px;
-  border-bottom: 3px solid #1e8a5e;
+  border-bottom: 3px solid var(--color-primary);
   margin-bottom: 26px;
 }
 
 .pdf-brand {
-  color: #1e8a5e;
+  color: var(--color-primary);
   font-size: 15px;
   font-weight: 700;
   text-transform: uppercase;
@@ -227,7 +227,7 @@
 .pdf-kpi-card strong {
   display: block;
   margin: 8px 0 4px;
-  color: #1e8a5e;
+  color: var(--color-primary);
   font-size: 30px;
   line-height: 1;
 }
@@ -237,7 +237,7 @@
 }
 
 .pdf-alert-normal {
-  color: #1e8a5e !important;
+  color: var(--color-primary) !important;
 }
 
 .pdf-text-section,
@@ -250,7 +250,7 @@
 }
 
 .pdf-section-label {
-  color: #1e8a5e;
+  color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;

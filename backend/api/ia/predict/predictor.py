@@ -30,7 +30,15 @@ router = APIRouter()
 CACHE_TTL = 12 * 3600
 CACHE_GEMINI = {}
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+def _get_gemini_client():
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return None
+    try:
+        return genai.Client(api_key=api_key)
+    except Exception:
+        return None
+
 GEMINI_MODEL = "gemini-3.1-flash-lite"
 FECHAS_FUTURAS = ["2026-04-15", "2026-04-16", "2026-04-17"]
 
@@ -109,7 +117,10 @@ Proyeccion XGBoost: {predicciones_xgboost}.
 Recomienda en 1-2 lineas si comprar mas stock."""
 
     try:
-        response = client.models.generate_content(
+        gemini_client = _get_gemini_client()
+        if gemini_client is None:
+            return "Recomendacion: Sin API key de Gemini. Usar proyeccion XGBoost como fallback."
+        response = gemini_client.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt_gemini
         )

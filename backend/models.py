@@ -11,10 +11,12 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=False)
+    rol = Column(String, default="cliente_base", nullable=False)
     activation_token = Column(String, nullable=True)
     activation_expires_at = Column(DateTime, nullable=True)
 
     ventas = relationship("Venta", back_populates="usuario")
+    pedidos = relationship("Pedido", back_populates="usuario")
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
@@ -24,16 +26,31 @@ class PasswordResetToken(Base):
     token = Column(String, index=True)
     expires_at = Column(DateTime)
 
+class Categoria(Base):
+    __tablename__ = "categorias"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, unique=True, index=True, nullable=False)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    descripcion = Column(Text, nullable=True)
+
+    productos = relationship("Producto", back_populates="categoria_rel")
+
+
 class Producto(Base):
     __tablename__ = "productos"
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, index=True)
-    categoria = Column(String)
+    categoria = Column(String)  # deprecated — se mantiene por compatibilidad
+    categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=False, index=True)
     precio = Column(Float)
+    precio_base = Column(Float, default=0.0, nullable=False)
+    precio_distribuidor = Column(Float, default=0.0, nullable=False)
     stock = Column(Integer)
     stockMin = Column(Integer)
 
+    categoria_rel = relationship("Categoria", back_populates="productos")
     movimientos = relationship("MovimientoInventario", back_populates="producto")
     venta_items = relationship("VentaItem", back_populates="producto")
 
@@ -92,7 +109,8 @@ class Pedido(Base):
         Index('ix_pedidos_estado', 'estado'),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     guia_rastreo = Column(String, unique=True, index=True, nullable=False)
     cliente_nombre = Column(String, nullable=False)
     cliente_telefono = Column(String, nullable=False)
@@ -105,6 +123,7 @@ class Pedido(Base):
     fecha_creacion = Column(DateTime, default=func.now())
     fecha_actualizacion = Column(DateTime, default=func.now(), onupdate=func.now())
 
+    usuario = relationship("User", back_populates="pedidos")
     items = relationship("PedidoItem", back_populates="pedido", cascade="all, delete-orphan")
 
 class PedidoItem(Base):

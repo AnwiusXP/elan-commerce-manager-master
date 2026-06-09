@@ -64,25 +64,25 @@ export default function Register() {
 
   if (success) {
     return (
-      <div style={containerStyle}>
+      <div className="theme-public-clean" style={containerStyle}>
         <div style={cardStyle}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📧</div>
-            <h2 style={{ color: '#e6edf3', marginBottom: '12px' }}>Registro recibido</h2>
-            <p style={{ color: '#8b949e', marginBottom: '24px', lineHeight: '1.6' }}>
+            <h2 style={{ color: 'var(--color-text-main)', marginBottom: '12px' }}>Registro recibido</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', lineHeight: '1.6' }}>
               Te hemos enviado un correo de activación a:<br />
-              <strong style={{ color: '#e6edf3' }}>{email}</strong>
+              <strong style={{ color: 'var(--color-text-main)' }}>{email}</strong>
             </p>
-            <p style={{ color: '#8b949e', marginBottom: '32px', lineHeight: '1.6', fontSize: '0.88rem' }}>
-              Abre la interfaz de <strong style={{ color: '#1e8a5e' }}>Mailpit</strong> en<br />
-              <a href="http://localhost:8025" target="_blank" rel="noopener noreferrer" style={{ color: '#1e8a5e', textDecoration: 'none', fontWeight: 'bold' }}>http://localhost:8025</a><br />
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '32px', lineHeight: '1.6', fontSize: '0.88rem' }}>
+              Abre la interfaz de <strong style={{ color: 'var(--color-primary)' }}>Mailpit</strong> en<br />
+              <a href="http://localhost:8025" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 'bold' }}>http://localhost:8025</a><br />
               para activar tu cuenta.
             </p>
             <button onClick={() => navigate('/login')} style={{ ...buttonStyle, marginBottom: '12px' }}>
               Ir a Iniciar Sesión
             </button>
             <div>
-              <Link to="/" style={{ color: '#8b949e', fontSize: '0.85rem', textDecoration: 'none' }}>← Ver catálogo</Link>
+              <Link to="/" style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textDecoration: 'none' }}>← Ver catálogo</Link>
             </div>
           </div>
         </div>
@@ -91,11 +91,11 @@ export default function Register() {
   }
 
   return (
-    <div style={containerStyle}>
+    <div className="theme-public-clean" style={containerStyle}>
       <div style={cardStyle}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ color: '#e6edf3', fontSize: '1.4rem', fontWeight: '700' }}>Crear Cuenta</h1>
-          <p style={{ color: '#8b949e', fontSize: '0.9rem', marginTop: '4px' }}>Élan Pure Commerce</p>
+          <h1 style={{ color: 'var(--color-text-main)', fontSize: '1.4rem', fontWeight: '700' }}>Crear Cuenta</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Élan Pure Commerce</p>
         </div>
 
         {error && <div style={errorBoxStyle}>{error}</div>}
@@ -111,7 +111,7 @@ export default function Register() {
               style={inputStyle}
               autoComplete="username"
             />
-            <span style={{ color: '#6e7681', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+            <span style={{ color: '#6b7280', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
               Alfanumérico, 3-30 caracteres. Este será tu identificador de acceso.
             </span>
           </div>
@@ -124,7 +124,7 @@ export default function Register() {
               placeholder="tu@email.com"
               style={inputStyle}
             />
-            <span style={{ color: '#6e7681', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+            <span style={{ color: '#6b7280', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
               Se usará para notificaciones y recuperación de contraseña.
             </span>
           </div>
@@ -154,7 +154,7 @@ export default function Register() {
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
-          <Link to="/login" style={{ color: '#8b949e', fontSize: '0.85rem', textDecoration: 'none' }}>
+          <Link to="/login" style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', textDecoration: 'none' }}>
             ¿Ya tienes cuenta? Inicia sesión
           </Link>
         </div>
@@ -163,9 +163,9 @@ export default function Register() {
   )
 }
 
-const containerStyle = { minHeight: '100vh', background: '#0d1117', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }
-const cardStyle = { background: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px' }
-const labelStyle = { color: '#c9d1d9', fontSize: '0.9rem', display: 'block', marginBottom: '6px' }
-const inputStyle = { width: '100%', background: '#0d1117', border: '1px solid #30363d', color: '#e6edf3', borderRadius: '8px', padding: '10px 14px', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' }
-const buttonStyle = { width: '100%', background: '#1e8a5e', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', marginTop: '8px' }
-const errorBoxStyle = { background: 'rgba(248,81,73,0.1)', border: '1px solid rgba(248,81,73,0.4)', color: '#f85149', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }
+const containerStyle = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }
+const cardStyle = { background: '#ffffff', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '48px 40px', width: '100%', maxWidth: '420px', boxShadow: 'var(--shadow-md)' }
+const labelStyle = { color: '#374151', fontSize: '0.9rem', display: 'block', marginBottom: '6px', fontWeight: '500' }
+const inputStyle = { width: '100%', background: '#f8fafc', border: '1px solid #d1d5db', color: 'var(--color-text-main)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }
+const buttonStyle = { width: '100%', background: 'var(--color-primary)', border: 'none', color: '#fff', borderRadius: '8px', padding: '11px', fontSize: '0.95rem', fontWeight: '600', cursor: 'pointer', marginTop: '8px' }
+const errorBoxStyle = { background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.3)', color: '#b91c1c', borderRadius: '8px', padding: '10px 14px', fontSize: '0.88rem', marginBottom: '16px' }

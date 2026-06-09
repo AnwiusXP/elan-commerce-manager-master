@@ -3,8 +3,18 @@ import api from './api'
 export const login = async (usuario, contrasena) => {
   try {
     const res = await api.post('/api/login', { usuario, contrasena })
-    localStorage.setItem('token', res.data.access_token)
-    return { ok: true }
+    if (res.data.access_token) {
+      // Store admin sessions in sessionStorage (volatile), others in localStorage (persistent)
+      const isAdmin = res.data.user?.role === 'admin' || res.data.user?.rol === 'admin'
+      if (isAdmin) {
+        sessionStorage.setItem('token', res.data.access_token)
+        sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      } else {
+        localStorage.setItem('token', res.data.access_token)
+        localStorage.setItem('user', JSON.stringify(res.data.user))
+      }
+    }
+    return { ok: true, user: res.data.user, role: res.data.user?.role }
   } catch (error) {
     return { ok: false, mensaje: error?.response?.data?.message || 'Usuario o contraseña incorrectos.' }
   }
@@ -12,15 +22,34 @@ export const login = async (usuario, contrasena) => {
 
 export const logout = async () => {
   try {
-    await api.post('/api/logout')
-  } catch (error) {
-    // Ignorar error de logout, pero eliminar el token local.
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('user')
+  } catch (e) {
+    // ignore
   }
-  localStorage.removeItem('token')
+}
+
+export const obtenerUserId = () => {
+  const user = obtenerUsuario()
+  return user ? user.id : null
 }
 
 export const estaAutenticado = () => {
-  return !!localStorage.getItem('token')
+  return !!(sessionStorage.getItem('token') || localStorage.getItem('token'))
+}
+
+export const obtenerUsuario = () => {
+  const su = sessionStorage.getItem('user')
+  if (su) return JSON.parse(su)
+  const lu = localStorage.getItem('user')
+  return lu ? JSON.parse(lu) : null
+}
+
+export const obtenerRol = () => {
+  const user = obtenerUsuario()
+  return user ? (user.role || user.rol) : null
 }
 
 export const forgotPassword = async (email) => {
@@ -48,4 +77,19 @@ export const resetPassword = async (email, token, new_password) => {
   } catch (error) {
     return { ok: false, mensaje: error?.response?.data?.detail || 'Error al restablecer contraseña.' }
   }
+}
+
+export const updateProfile = async (data) => {
+  const res = await api.put('/api/profile', data)
+  if (res.data) {
+    const currentUser = obtenerUsuario()
+    const updatedUser = { ...currentUser, ...res.data }
+    // Update in the same storage where the token exists
+    if (sessionStorage.getItem('token')) {
+      sessionStorage.setItem('user', JSON.stringify(updatedUser))
+    } else {
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+    }
+  }
+  return res.data
 }

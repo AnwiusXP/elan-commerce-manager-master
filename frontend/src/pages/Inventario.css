@@ -35,7 +35,7 @@
   border-radius: 14px 14px 0 0;
 }
 
-.inv-kpi-card.accent-green::before { background: linear-gradient(90deg, #1e8a5e, #2dd48b); }
+.inv-kpi-card.accent-green::before { background: linear-gradient(90deg, var(--color-primary), var(--color-secondary)); }
 .inv-kpi-card.accent-red::before { background: linear-gradient(90deg, #f85149, #ff7b72); }
 .inv-kpi-card.accent-yellow::before { background: linear-gradient(90deg, #d29922, #e3b341); }
 .inv-kpi-card.accent-blue::before { background: linear-gradient(90deg, #388bfd, #58a6ff); }
@@ -110,11 +110,11 @@
 .inv-filter-btn.active {
   background: rgba(30, 138, 94, 0.15);
   color: #2dd48b;
-  border-color: #1e8a5e;
+  border-color: var(--color-primary);
 }
 
 .inv-btn-primary {
-  background: linear-gradient(135deg, #1e8a5e, #2dd48b);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   border: none;
   color: #fff;
   border-radius: 10px;
@@ -469,7 +469,7 @@
 
 .inv-btn-submit {
   flex: 1;
-  background: linear-gradient(135deg, #1e8a5e, #2dd48b);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   border: none;
   color: #fff;
   border-radius: 10px;

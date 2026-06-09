@@ -3,13 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 import { crearPedido } from '../services/pedidoService'
 import NavbarPublico from '../components/NavbarPublico'
 import ProductImage from '../components/ProductImage'
+import { obtenerUsuario, logout } from '../services/authService'
+import { useCarrito } from '../context/CarritoContext'
 
 function Checkout() {
-  const [carrito, setCarrito] = useState([])
+  const { carrito, totalPrecio: total, vaciarCarrito } = useCarrito()
   const [cargando, setCargando] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [error, setError] = useState('')
   const [copiado, setCopiado] = useState(false)
+  const [usuario] = useState(obtenerUsuario)
   const navigate = useNavigate()
 
   // Form fields
@@ -20,12 +23,8 @@ function Checkout() {
   const [nequiCelular, setNequiCelular] = useState('')
 
   useEffect(() => {
-    const c = JSON.parse(localStorage.getItem('carrito')) || []
-    if (c.length === 0) navigate('/carrito')
-    setCarrito(c)
-  }, [navigate])
-
-  const total = carrito.reduce((a, it) => a + it.precio * it.cantidad, 0)
+    if (carrito.length === 0 && !resultado) navigate('/carrito')
+  }, [carrito, resultado, navigate])
 
   function validarFormulario() {
     if (!nombre.trim() || nombre.trim().length < 3) return 'Ingresa tu nombre completo (mínimo 3 caracteres).'
@@ -61,8 +60,7 @@ function Checkout() {
     setCargando(false)
 
     if (res.ok) {
-      localStorage.setItem('carrito', JSON.stringify([]))
-      setCarrito([])
+      vaciarCarrito()
       setResultado(res.data)
     } else {
       setError(res.mensaje || 'Error al procesar el pedido.')
@@ -81,7 +79,7 @@ function Checkout() {
   if (resultado) {
     return (
       <div className="theme-public-clean">
-        <NavbarPublico totalCarrito={0} showSearch={false} />
+        <NavbarPublico showSearch={false} usuario={usuario} onLogout={() => { logout(); navigate('/') }} />
 
         <div style={{ maxWidth: '680px', margin: '48px auto', padding: '0 20px' }}>
           {/* Success Card */}
@@ -155,8 +153,16 @@ function Checkout() {
                     }}>
                       📞 {resultado.nequi_duena}
                     </span>
-                    <span style={{ display: 'block', color: '#6b7280', fontSize: '0.82rem', marginTop: '4px' }}>
+                    <span style={{ display: 'block', color: '#6b7280', fontSize: '0.82rem', marginTop: '4px', marginBottom: '12px' }}>
                       A nombre de: {resultado.propietario_nequi}
+                    </span>
+                    <span style={{
+                      display: 'block', background: '#fef3c7', border: '1px solid #f59e0b',
+                      borderRadius: '8px', padding: '10px 14px', color: '#92400e',
+                      fontSize: '0.9rem', lineHeight: '1.4'
+                    }}>
+                      📝 En el mensaje de tu transferencia, escribe tu número de guía:<br/>
+                      <strong style={{ fontWeight: '800', letterSpacing: '1px' }}>{resultado.guia_rastreo}</strong>
                     </span>
                   </p>
                 </div>
@@ -200,9 +206,9 @@ function Checkout() {
   // --- Formulario de Checkout ---
   return (
     <div className="theme-public-clean">
-      <NavbarPublico totalCarrito={carrito.reduce((a, it) => a + it.cantidad, 0)} showSearch={false} />
+      <NavbarPublico showSearch={false} usuario={usuario} onLogout={() => { logout(); navigate('/') }} />
 
-      <div style={{ maxWidth: '960px', margin: '40px auto', padding: '0 20px' }}>
+      <div className="checkout-page-content" style={{ maxWidth: '960px', margin: '40px auto', padding: '0 20px' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0d1117', marginBottom: '32px' }}>Datos de Envío y Pago</h1>
 
         {error && (
@@ -215,9 +221,9 @@ function Checkout() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '28px', alignItems: 'start' }}>
+        <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '28px', alignItems: 'start' }}>
           {/* Shipping + Payment Form */}
-          <div style={{ background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px', padding: '32px' }}>
+          <div className="checkout-card" style={{ background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px', padding: '32px' }}>
             <p style={{ fontWeight: '700', color: '#374151', marginBottom: '20px', fontSize: '0.95rem' }}>📍 Información de envío</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}>
               <div>
@@ -265,7 +271,7 @@ function Checkout() {
           </div>
 
           {/* Order summary */}
-          <div style={{ background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px', padding: '28px', position: 'sticky', top: '20px' }}>
+          <div className="checkout-summary" style={{ background: '#fff', border: '1px solid #e1e4e8', borderRadius: '16px', padding: '28px', position: 'sticky', top: '20px' }}>
             <h3 style={{ fontWeight: '700', color: '#0d1117', marginBottom: '20px', fontSize: '1rem' }}>Resumen del pedido</h3>
             {carrito.map((it, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from sqlalchemy.orm import Session
-from sqlalchemy import func as sql_func, text as sql_text
+from sqlalchemy import func as sql_func, text
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -19,6 +19,7 @@ import uuid
 from database import engine, Base
 from models import (
     Producto,
+    Categoria,
     Venta,
     VentaItem,
     MovimientoInventario,
@@ -31,6 +32,8 @@ from auth import (
     authenticate_user,
     create_access_token,
     get_current_user,
+    get_current_admin_user,
+    get_current_user_optional,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_db,
     get_password_hash,
@@ -41,23 +44,41 @@ from datetime import timedelta
 import random
 import string
 from email_utils import send_reset_email, send_activation_email
+from enum import Enum
 
 # Importación válida del router modular
 from api.ia.predict import predict_router
+
+
+class CategoriaOficial(Enum):
+    AMBIENTACION           = ("Ambientación",           "ambientacion")
+    LIMPIEZA_HOGAR         = ("Limpieza del Hogar",     "limpieza_hogar")
+    PISOS_SUPERFICIES      = ("Pisos y Superficies",    "pisos_superficies")
+    LAVADO_ROPA            = ("Lavado de Ropa",         "lavado_ropa")
+    HIGIENE_PERSONAL       = ("Higiene Personal",       "higiene_personal")
+    SOLVENTES_INDUSTRIALES = ("Solventes e Industriales","solventes_industriales")
+
+    @property
+    def nombre(self): return self.value[0]
+    @property
+    def slug(self):   return self.value[1]
+
+
+SLUGS_OFICIALES = {m.slug for m in CategoriaOficial}
 
 app = FastAPI(title="Elan Commerce Manager - Microservicio IA")
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    print(f"🔥 ERROR 422 - Validación fallida en la ruta: {request.url.path}")
-    print("🔥 Cuerpo recibido:")
+    print(f"[VALIDATION] ERROR 422 - Validacion fallida en la ruta: {request.url.path}")
+    print("[VALIDATION] Cuerpo recibido:")
     try:
         body = await request.json()
         print(json.dumps(body, indent=2))
     except Exception:
         print("No se pudo leer el cuerpo (probablemente no sea JSON).")
-    print("🔥 Detalle del error de validación (Pydantic):")
+    print("[VALIDATION] Detalle del error de validacion (Pydantic):")
     print(json.dumps(exc.errors(), indent=2))
     return JSONResponse(
         status_code=422,
@@ -69,28 +90,42 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 Base.metadata.create_all(bind=engine)
 
 # 2. Configuración de CORS Dinámica (Local + Producción)
-# Orígenes locales explícitos para desarrollo
+# Orígenes locales explícitos para desarrollo (los navegadores jamás envían 0.0.0.0 como Origin)
 LOCAL_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
+    "http://192.168.100.130:5173",
+    "http://192.168.100.130:3000",
 ]
 
-# Leer FRONTEND_URL desde variable de entorno (Render injecta esta variable)
+# Leer FRONTEND_URL desde variable de entorno (Render inyecta esta variable)
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 
-# Construir lista de orígenes: locales + producción (si está configurada)
+# Orígenes extra dinámicos (IP local, Ngrok, etc.) desde variable de entorno
+# Formato: EXTRA_ORIGINS=http://192.168.1.10:5173,https://xxxx.ngrok.io
+EXTRA_ORIGINS_RAW = os.getenv("EXTRA_ORIGINS", "")
+EXTRA_ORIGINS = []
+if EXTRA_ORIGINS_RAW:
+    EXTRA_ORIGINS = [origin.strip() for origin in EXTRA_ORIGINS_RAW.split(",") if origin.strip()]
+
+# Construir lista de orígenes: locales + extra + producción (si está configurada)
 origins = LOCAL_ORIGINS.copy()
 if FRONTEND_URL:
     origins.append(FRONTEND_URL)
+origins.extend(EXTRA_ORIGINS)
 
 # Fallback para producción de Render (URL hardcodeada como respaldo)
 PRODUCTION_ORIGIN = "https://elan-commerce-manager-master-1.onrender.com"
 if PRODUCTION_ORIGIN not in origins:
     origins.append(PRODUCTION_ORIGIN)
 
-print(f" 🌐 CORS configurado para: {origins}")
+# Eliminar duplicados preservando orden
+seen = set()
+origins = [o for o in origins if not (o in seen or seen.add(o))]
+
+print(f" [CORS] Configurado para: {origins}")
 
 # 1. Configuración de CORS antes de montar rutas
 app.add_middleware(
@@ -120,12 +155,34 @@ class LoginRequest(BaseModel):
     contrasena: str
 
 
+class CategoriaBase(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+
+
+class CategoriaResponse(CategoriaBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
 class ProductoBase(BaseModel):
     nombre: str
-    categoria: str
+    categoria_id: int
     precio: float
     stock: int
     stockMin: int
+
+
+def _validar_categoria_oficial(categoria_id: int, db: Session) -> Categoria:
+    cat = db.query(Categoria).filter(Categoria.id == categoria_id).first()
+    if not cat or cat.slug not in SLUGS_OFICIALES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Slug no válido. Esperados: {', '.join(sorted(SLUGS_OFICIALES))}"
+        )
+    return cat
 
 
 class VentaItemRequest(BaseModel):
@@ -219,6 +276,16 @@ class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
+    rol: str = "cliente_base"
+
+
+class UserUpdate(BaseModel):
+    """Esquema genérico de actualización.
+    Nótese que el campo 'rol' está deliberadamente OMITIDO.
+    El rol se asigna ÚNICAMENTE en la creación y es 100% inmutable después."""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
 
 
 class UserResponse(BaseModel):
@@ -226,6 +293,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    rol: str
 
     class Config:
         from_attributes = True
@@ -233,6 +301,23 @@ class UserResponse(BaseModel):
 
 class UserStatusUpdate(BaseModel):
     is_active: bool
+
+
+class UserAdminUpdate(BaseModel):
+    """Esquema para que el administrador edite cualquier usuario, incluyendo el rol.
+    La validación de qué roles puede asignar se hace en el controlador."""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+    rol: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Esquema de autogestión de perfil para cualquier usuario autenticado.
+    El campo 'rol' está deliberadamente OMITIDO — es inmutable para el propio usuario."""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
 
 
 # --- ENDPOINTS ---
@@ -257,14 +342,22 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # TTL por rol: admin = 15 minutos, clientes/distribuidores = 7 días
+    if user.rol == 'admin':
+        access_token_expires = timedelta(minutes=15)
+    elif user.rol in ('cliente_base', 'distribuidor'):
+        access_token_expires = timedelta(days=7)
+    else:
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "user_id": user.id, "rol": user.rol},
+        expires_delta=access_token_expires,
     )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": {"username": user.username, "email": user.email, "role": "admin"},
+        "user": {"id": user.id, "username": user.username, "email": user.email, "role": user.rol},
     }
 
 
@@ -382,6 +475,7 @@ async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db
 
 
 @app.get("/api/auth/activate/{token}")
+@app.get("/api/users/activate/{token}")
 async def activate_account(token: str, db: Session = Depends(get_db)):
     print(f"[AUTH] Activación recibida con token: {token}")
     user = db.query(User).filter(User.activation_token == token).first()
@@ -424,7 +518,7 @@ async def activate_account(token: str, db: Session = Depends(get_db)):
 
 @app.get("/api/ventas")
 async def get_ventas(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """Obtiene el historial de ventas activas (APROBADA) para alimentar Dashboard y XGBoost.
     Las ventas RECHAZADA, REEMBOLSADA o CANCELADA se excluyen de métricas."""
@@ -631,7 +725,7 @@ async def checkout(req: CheckoutRequest, db: Session = Depends(get_db)):
 async def create_venta(
     venta: VentaRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """Registra venta, valida stock y descuenta inventario de forma transaccional"""
     try:
@@ -728,32 +822,79 @@ async def create_venta(
 # --- GESTIÓN DE PRODUCTOS ---
 
 
+def apply_price_rules(productos, current_user):
+    if not current_user:
+        for p in productos:
+            p.precio = None
+            p.precio_base = None
+            p.precio_distribuidor = None
+    elif current_user.rol == "distribuidor":
+        for p in productos:
+            p.precio = p.precio_distribuidor
+            p.precio_base = None
+    elif current_user.rol == "cliente_base":
+        for p in productos:
+            p.precio = p.precio_base
+            p.precio_distribuidor = None
+    return productos
+
+
 @app.get("/api/productos")
-async def list_productos(db: Session = Depends(get_db)):
-    return db.query(Producto).all()
+async def list_productos(
+    categoria: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    query = db.query(Producto)
+    if categoria:
+        slug_normalizado = categoria.strip().lower()
+        query = query.join(Producto.categoria_rel).filter(Categoria.slug == slug_normalizado)
+    productos = query.all()
+    return apply_price_rules(productos, current_user)
 
 
 @app.get("/api/catalogo")
-async def list_catalogo(db: Session = Depends(get_db)):
-    """Obtiene los productos disponibles para la venta (stock > 0) para el frontend público"""
-    return db.query(Producto).filter(Producto.stock > 0).all()
+async def list_catalogo(
+    categoria_id: Optional[int] = None,
+    categoria: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """Obtiene los productos disponibles para la venta (stock > 0) para el frontend público.
+    Opcionalmente filtra por categoria_id o por slug de categoría."""
+    query = db.query(Producto).filter(Producto.stock > 0)
+    if categoria_id is not None:
+        query = query.filter(Producto.categoria_id == categoria_id)
+    if categoria:
+        query = query.join(Producto.categoria_rel).filter(Categoria.slug == categoria.strip().lower())
+    productos = query.all()
+    return apply_price_rules(productos, current_user)
 
 
 @app.post("/api/productos", status_code=201)
 async def create_producto(
     nombre: str = Form(...),
-    categoria: str = Form(...),
-    precio: float = Form(...),
+    categoria_id: int = Form(...),
+    precio_base: float = Form(...),
+    precio_distribuidor: float = Form(...),
     stock: int = Form(...),
     stockMin: int = Form(...),
     imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    cat = _validar_categoria_oficial(categoria_id, db)
+
     nuevo = Producto(
         nombre=nombre,
-        categoria=categoria,
-        precio=precio,
+        categoria=cat.nombre,
+        categoria_id=categoria_id,
+        precio=precio_base,
+        precio_base=precio_base,
+        precio_distribuidor=precio_distribuidor,
         stock=stock,
         stockMin=stockMin,
     )
@@ -776,20 +917,29 @@ async def create_producto(
 async def update_producto(
     producto_id: int,
     nombre: str = Form(...),
-    categoria: str = Form(...),
-    precio: float = Form(...),
+    categoria_id: int = Form(...),
+    precio_base: float = Form(...),
+    precio_distribuidor: float = Form(...),
     stock: int = Form(...),
     stockMin: int = Form(...),
     imagen: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
+    if current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    cat = _validar_categoria_oficial(categoria_id, db)
+
     p.nombre = nombre
-    p.categoria = categoria
-    p.precio = precio
+    p.categoria = cat.nombre
+    p.categoria_id = categoria_id
+    p.precio = precio_base
+    p.precio_base = precio_base
+    p.precio_distribuidor = precio_distribuidor
     p.stock = stock
     p.stockMin = stockMin
 
@@ -810,7 +960,7 @@ async def update_producto(
 async def delete_producto(
     producto_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     p = db.query(Producto).filter(Producto.id == producto_id).first()
     if not p:
@@ -826,12 +976,164 @@ async def delete_producto(
     db.commit()
 
 
+# --- GESTIÓN DE CATEGORÍAS ---
+
+
+@app.get("/api/categorias")
+async def list_categorias(db: Session = Depends(get_db)):
+    return db.query(Categoria).order_by(Categoria.nombre).all()
+
+
+@app.post("/api/categorias", status_code=201)
+async def create_categoria(
+    cat: CategoriaBase,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    existente = db.query(Categoria).filter(Categoria.nombre == cat.nombre).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="Ya existe una categoría con ese nombre.")
+    nueva = Categoria(nombre=cat.nombre, descripcion=cat.descripcion)
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.put("/api/categorias/{categoria_id}")
+async def update_categoria(
+    categoria_id: int,
+    cat: CategoriaBase,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    c = db.query(Categoria).filter(Categoria.id == categoria_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+    duplicado = db.query(Categoria).filter(Categoria.nombre == cat.nombre, Categoria.id != categoria_id).first()
+    if duplicado:
+        raise HTTPException(status_code=400, detail="Ya existe otra categoría con ese nombre.")
+    c.nombre = cat.nombre
+    c.descripcion = cat.descripcion
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@app.delete("/api/categorias/{categoria_id}", status_code=204)
+async def delete_categoria(
+    categoria_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    c = db.query(Categoria).filter(Categoria.id == categoria_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada.")
+    productos_asociados = db.query(Producto).filter(Producto.categoria_id == categoria_id).count()
+    if productos_asociados > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"No se puede eliminar: {productos_asociados} producto(s) usan esta categoría."
+        )
+    db.delete(c)
+    db.commit()
+
+
+@app.post("/api/categorias/seed-oficiales", status_code=201)
+async def seed_categorias_oficiales(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    # ── Paso 0: Asegurar columna slug + poblar registros legacy ──
+    with db.bind.connect() as conn:
+        result = conn.execute(
+            text("SELECT column_name FROM information_schema.columns "
+                 "WHERE table_name='categorias' AND column_name='slug'")
+        )
+        if not result.fetchone():
+            conn.execute(text("ALTER TABLE categorias ADD COLUMN slug VARCHAR"))
+
+        # Actualizar categorías legacy con LOWER() para case-insensitive
+        conn.execute(text("UPDATE categorias SET slug = 'sin-categoria'     WHERE LOWER(nombre) = 'sin categoria'"))
+        conn.execute(text("UPDATE categorias SET slug = 'limpieza-hogar'    WHERE LOWER(nombre) = 'cuidado hogar'"))
+        conn.execute(text("UPDATE categorias SET slug = 'higiene-personal'  WHERE LOWER(nombre) = 'cuidado personal'"))
+        # Fallback de seguridad para cualquier otro registro inesperado
+        conn.execute(text("UPDATE categorias SET slug = 'legacy_' || id WHERE slug IS NULL"))
+
+        conn.execute(text("ALTER TABLE categorias ALTER COLUMN slug SET NOT NULL"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_categorias_slug ON categorias (slug)"))
+        conn.commit()
+
+    # ── Paso 1: Mapeo de legacy_slug → slug oficial (¡Blindado contra Mayúsculas!) ──
+    MAPEO_LEGACY = {
+        "limpieza-hogar":   "limpieza_hogar",
+        "higiene-personal": "higiene_personal",
+        "sin-categoria":    "limpieza_hogar",
+    }
+
+    # ── Paso 2: Crear o actualizar cada categoría oficial ──
+    creadas, actualizadas = [], []
+    for miembro in CategoriaOficial:
+        cat = (
+            db.query(Categoria)
+            .filter((Categoria.slug == miembro.slug) | (Categoria.nombre == miembro.nombre))
+            .first()
+        )
+        if cat:
+            if cat.slug != miembro.slug or cat.nombre != miembro.nombre:
+                cat.nombre = miembro.nombre
+                cat.slug   = miembro.slug
+                actualizadas.append(miembro.nombre)
+        else:
+            db.add(Categoria(nombre=miembro.nombre, slug=miembro.slug))
+            creadas.append(miembro.nombre)
+    db.flush()
+
+    # ── Paso 3: Migrar productos de categorías legacy → oficiales usando slug temporal ──
+    cats_oficiales = {c.slug: c.id for c in db.query(Categoria).all()}
+    slug_a_nombre_oficial = {m.slug: m.nombre for m in CategoriaOficial}
+
+    for legacy_slug, target_slug in MAPEO_LEGACY.items():
+        legacy_cat = db.query(Categoria).filter(Categoria.slug == legacy_slug).first()
+        if not legacy_cat:
+            continue
+
+        target_id = cats_oficiales.get(target_slug)
+        nombre_oficial = slug_a_nombre_oficial.get(target_slug)
+        if not target_id or not nombre_oficial:
+            continue
+
+        afectados = (
+            db.query(Producto)
+            .filter(Producto.categoria_id == legacy_cat.id)
+            .update({
+                "categoria_id": target_id,
+                "categoria": nombre_oficial,
+            })
+        )
+        if afectados > 0:
+            print(f"  Migrados {afectados} productos de slug legacy '{legacy_slug}' -> '{target_slug}'")
+
+    # ── Paso 4: Eliminar categorías legacy huérfanas de forma segura ──
+    legacy_rows = db.query(Categoria).filter(~Categoria.slug.in_(SLUGS_OFICIALES)).all()
+    for row in legacy_rows:
+        count = db.query(Producto).filter(Producto.categoria_id == row.id).count()
+        if count == 0:
+            db.delete(row)
+            print(f"  Eliminada legacy huérfana: '{row.nombre}' (slug={row.slug})")
+        else:
+            print(f"  [WARN] '{row.nombre}' aún tiene {count} productos — no se elimina")
+
+    db.commit()
+    return {"status": "ok", "creadas": creadas, "actualizadas": actualizadas, "total": len(CategoriaOficial)}
+
+
 # --- GESTION DE USUARIOS (ADMIN) ---
 
 
 @app.get("/api/users", response_model=List[UserResponse])
 async def list_users(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     return db.query(User).all()
 
@@ -851,11 +1153,19 @@ async def create_user(
             detail="El username debe ser alfanumerico (3-30 caracteres, sin espacios).",
         )
 
+    # Validar que el rol sea uno de los permitidos
+    ROLES_VALIDOS = ["admin", "cliente_base", "distribuidor"]
+    if user.rol not in ROLES_VALIDOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Rol invalido. Debe ser uno de: {', '.join(ROLES_VALIDOS)}",
+        )
+
     # Verificar duplicados
     if get_user_by_username(db, user.username):
-        raise HTTPException(status_code=400, detail="El username ya esta registrado.")
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya está registrado. Prueba con otro.")
     if get_user_by_email(db, user.email):
-        raise HTTPException(status_code=400, detail="El email ya esta registrado.")
+        raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado. ¿Ya tienes una cuenta?")
 
     token = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(days=7)
@@ -865,6 +1175,7 @@ async def create_user(
         email=user.email,
         hashed_password=get_password_hash(user.password),
         is_active=False,
+        rol=user.rol,
         activation_token=token,
         activation_expires_at=expires_at,
     )
@@ -875,28 +1186,27 @@ async def create_user(
     except IntegrityError:
         db.rollback()
         db.execute(
-            sql_text(
+            text(
                 "SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE(MAX(id), 1)) FROM users"
             )
         )
         db.commit()
         raise HTTPException(
-            status_code=400, detail="Conflicto de llave unica al crear usuario."
+            status_code=400, detail="Este usuario o correo ya está registrado. Por favor intenta con datos diferentes."
         )
 
-    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    activation_url = f"{base_url}/activate/{token}"
+    # Use BACKEND_URL for activation links (fallback to localhost)
     if background_tasks:
-        background_tasks.add_task(send_activation_email, user.email, activation_url)
+        background_tasks.add_task(send_activation_email, user.email, token)
     else:
-        await send_activation_email(user.email, activation_url)
+        await send_activation_email(user.email, token)
 
     return new_user
 
 
 @app.delete("/api/users/{user_id}")
 async def delete_user(
-    user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    user_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -919,7 +1229,7 @@ async def update_user_status(
     user_id: int,
     status_update: UserStatusUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """Actualiza el estado is_active de un usuario (toggle)."""
     user = db.query(User).filter(User.id == user_id).first()
@@ -938,6 +1248,90 @@ async def update_user_status(
     }
 
 
+@app.put("/api/users/{user_id}")
+async def admin_update_user(
+    user_id: int,
+    update: UserAdminUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """El administrador edita los datos de un usuario, incluido el rol.
+    Si el usuario destino NO es admin, no se le puede asignar el rol 'admin'."""
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+
+    # Validar unicidad de username
+    if update.username is not None:
+        existing = get_user_by_username(db, update.username)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El username ya esta registrado.")
+
+    # Validar unicidad de email
+    if update.email is not None:
+        existing = get_user_by_email(db, update.email)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El email ya esta registrado.")
+
+    # Restricción de rol: si el target no es admin, no se le puede asignar admin
+    ROLES_VALIDOS = ["admin", "cliente_base", "distribuidor"]
+    if update.rol is not None:
+        if update.rol not in ROLES_VALIDOS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Rol invalido. Debe ser uno de: {', '.join(ROLES_VALIDOS)}",
+            )
+        if target.rol != "admin" and update.rol == "admin":
+            raise HTTPException(
+                status_code=400,
+                detail="No puedes elevar a admin a un usuario que no tiene ese rol.",
+            )
+
+    # Aplicar cambios
+    if update.username is not None:
+        target.username = update.username
+    if update.email is not None:
+        target.email = update.email
+    if update.is_active is not None:
+        target.is_active = update.is_active
+    if update.rol is not None:
+        target.rol = update.rol
+
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+@app.put("/api/profile")
+async def update_own_profile(
+    update: ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Cualquier usuario autenticado puede modificar su propio perfil.
+    El campo 'rol' es inmutable — se ignora aunque se envíe en el JSON."""
+    user_id = current_user.id
+
+    if update.username is not None:
+        existing = get_user_by_username(db, update.username)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El username ya esta registrado.")
+        current_user.username = update.username
+
+    if update.email is not None:
+        existing = get_user_by_email(db, update.email)
+        if existing and existing.id != user_id:
+            raise HTTPException(status_code=400, detail="El email ya esta registrado.")
+        current_user.email = update.email
+
+    if update.password is not None and update.password.strip():
+        current_user.hashed_password = get_password_hash(update.password)
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
 # ========================================================================
 # MÓDULO DE INVENTARIO — Centro Operativo de Flujo de Mercancía
 # ========================================================================
@@ -945,7 +1339,7 @@ async def update_user_status(
 
 @app.get("/api/inventario/resumen")
 async def inventario_resumen(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """
     Dashboard KPIs: valor total de inventario, alertas de stock bajo,
@@ -1013,7 +1407,7 @@ async def inventario_resumen(
 
 @app.get("/api/inventario/productos")
 async def inventario_productos(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """
     Tabla principal de inventario con métricas de rotación calculadas.
@@ -1091,7 +1485,7 @@ async def inventario_productos(
             {
                 "id": p.id,
                 "nombre": p.nombre,
-                "categoria": p.categoria,
+                "categoria": p.categoria_rel.nombre if p.categoria_rel else p.categoria,
                 "precio": p.precio,
                 "stock": p.stock if p.stock is not None else 0,
                 "stockMin": p.stockMin if p.stockMin is not None else 0,
@@ -1110,7 +1504,7 @@ async def inventario_productos(
 async def inventario_movimientos(
     producto_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Trazabilidad: Historial completo de movimientos de un producto.
@@ -1154,7 +1548,7 @@ async def inventario_movimientos(
 async def inventario_ajuste(
     ajuste: AjusteInventarioRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Registrar un ajuste manual de inventario: compra de stock, merma, devolución.
@@ -1210,7 +1604,7 @@ async def inventario_ajuste(
 async def procesar_reembolso(
     req: ReembolsoRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Procesa un reembolso en una ÚNICA transacción ACID:
@@ -1340,7 +1734,7 @@ async def procesar_reembolso(
 
 @app.get("/api/ventas/historial")
 async def get_ventas_historial(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """Historial completo de ventas incluyendo todos los estados (para admin)."""
     ventas = db.query(Venta).order_by(Venta.fecha.desc()).limit(200).all()
@@ -1362,7 +1756,7 @@ async def get_ventas_historial(
 
 @app.get("/api/inventario/alertas")
 async def inventario_alertas(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), current_user=Depends(get_current_admin_user)
 ):
     """
     Lista de productos que requieren acción inmediata: stock bajo o sin stock.
@@ -1382,7 +1776,7 @@ async def inventario_alertas(
             {
                 "id": p.id,
                 "nombre": p.nombre,
-                "categoria": p.categoria,
+                "categoria": p.categoria_rel.nombre if p.categoria_rel else p.categoria,
                 "stock": p.stock,
                 "stockMin": p.stockMin,
                 "severidad": severidad,
@@ -1411,9 +1805,14 @@ def _generar_guia() -> str:
 
 
 @app.post("/api/pedidos", status_code=201)
-async def crear_pedido(req: CrearPedidoRequest, db: Session = Depends(get_db)):
+async def crear_pedido(
+    req: CrearPedidoRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     Crea un pedido público de Nequi Contra Entrega.
+    Si el usuario está autenticado, vincula el pedido a su cuenta.
     NO descuenta stock (eso ocurre al aprobar).
     Genera un número de guía único para rastreo.
     """
@@ -1463,6 +1862,7 @@ async def crear_pedido(req: CrearPedidoRequest, db: Session = Depends(get_db)):
 
     try:
         nuevo_pedido = Pedido(
+            user_id=current_user.id if current_user else None,
             guia_rastreo=guia,
             cliente_nombre=req.cliente_nombre,
             cliente_telefono=req.cliente_telefono,
@@ -1541,6 +1941,41 @@ async def rastrear_pedido(guia: str, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/pedidos/mis-pedidos")
+async def mis_pedidos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retorna los pedidos vinculados al usuario autenticado (cliente/distribuidor)."""
+    pedidos = (
+        db.query(Pedido)
+        .filter(Pedido.user_id == current_user.id)
+        .order_by(Pedido.fecha_creacion.desc())
+        .all()
+    )
+    result = []
+    for p in pedidos:
+        items = db.query(PedidoItem).filter(PedidoItem.pedido_id == p.id).all()
+        result.append({
+            "id": p.id,
+            "guia_rastreo": p.guia_rastreo,
+            "total": p.total,
+            "estado": p.estado,
+            "fecha_creacion": p.fecha_creacion.isoformat() if p.fecha_creacion else None,
+            "fecha_actualizacion": p.fecha_actualizacion.isoformat() if p.fecha_actualizacion else None,
+            "items": [
+                {
+                    "nombre_producto": it.nombre_producto,
+                    "cantidad": it.cantidad,
+                    "precio_unitario": it.precio_unitario,
+                    "subtotal": it.subtotal,
+                }
+                for it in items
+            ],
+        })
+    return result
+
+
 # --- ADMINISTRACIÓN DE PEDIDOS (requiere autenticación) ---
 
 
@@ -1548,7 +1983,7 @@ async def rastrear_pedido(guia: str, db: Session = Depends(get_db)):
 async def listar_pedidos(
     estado: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """Lista todos los pedidos con filtro opcional por estado."""
     query = db.query(Pedido)
@@ -1590,7 +2025,7 @@ async def listar_pedidos(
 async def aprobar_pedido(
     pedido_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Aprueba un pedido PENDIENTE_NEQUI:
@@ -1694,7 +2129,7 @@ async def actualizar_estado_pedido(
     pedido_id: int,
     req: ActualizarEstadoPedidoRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_current_admin_user),
 ):
     """
     Actualiza el estado de un pedido (DESPACHADO, ENTREGADO, CANCELADO).

@@ -10,11 +10,17 @@ import Carrito from './pages/Carrito'
 import Checkout from './pages/Checkout'
 import Rastreo from './pages/Rastreo'
 import PrivateRoute from './components/PrivateRoute'
+import PrivateRouteCliente from './components/PrivateRouteCliente'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Usuarios from './pages/Usuarios'
 import Register from './pages/Register'
 import ActivationPage from './pages/ActivationPage'
+import Pedidos from './pages/Pedidos'
+import MisPedidos from './pages/MisPedidos'
+import MisDatos from './pages/MisDatos'
+import Categorias from './pages/Categorias'
+
 
 function App() {
   return (
@@ -30,14 +36,18 @@ function App() {
         <Route path="/restablecer-password" element={<ResetPassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/activate/*" element={<ActivationPage />} />
+        <Route path="/mis-pedidos" element={<PrivateRouteCliente><MisPedidos /></PrivateRouteCliente>} />
+        <Route path="/mis-datos" element={<PrivateRouteCliente><MisDatos /></PrivateRouteCliente>} />
 
         {/* Rutas protegidas — solo si está autenticado */}
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/productos" element={<PrivateRoute><Productos /></PrivateRoute>} />
-        <Route path="/ventas" element={<PrivateRoute><Ventas /></PrivateRoute>} />
-        <Route path="/inventario" element={<PrivateRoute><Inventario /></PrivateRoute>} />
-        <Route path="/reportes" element={<PrivateRoute><Reportes /></PrivateRoute>} />
-        <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin']}><Dashboard /></PrivateRoute>} />
+        <Route path="/productos" element={<PrivateRoute allowedRoles={['admin']}><Productos /></PrivateRoute>} />
+        <Route path="/ventas" element={<PrivateRoute allowedRoles={['admin']}><Ventas /></PrivateRoute>} />
+        <Route path="/pedidos" element={<PrivateRoute allowedRoles={['admin']}><Pedidos /></PrivateRoute>} />
+        <Route path="/inventario" element={<PrivateRoute allowedRoles={['admin']}><Inventario /></PrivateRoute>} />
+        <Route path="/reportes" element={<PrivateRoute allowedRoles={['admin']}><Reportes /></PrivateRoute>} />
+        <Route path="/usuarios" element={<PrivateRoute allowedRoles={['admin']}><Usuarios /></PrivateRoute>} />
+        <Route path="/categorias" element={<PrivateRoute allowedRoles={['admin']}><Categorias /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   )

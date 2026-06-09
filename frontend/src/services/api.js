@@ -11,7 +11,8 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    // Prefer sessionStorage (volatile) for admin sessions, fallback to localStorage
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token')
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -24,7 +25,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
+      // Clear tokens from both storages to ensure admin sessions are invalidated
+      try {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        sessionStorage.removeItem('token')
+        sessionStorage.removeItem('user')
+      } catch (e) {
+        // ignore storage errors
+      }
       window.location.href = '/login'
     }
     return Promise.reject(error)
