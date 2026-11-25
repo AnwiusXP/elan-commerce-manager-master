@@ -69,6 +69,16 @@ class Venta(Base):
     referencia_pago = Column(String, nullable=True)
     fecha = Column(DateTime, default=func.now())
 
+    # Datos fiscales del comprador y origen (Facturación DIAN / Ventas Externas)
+    cliente_nombre = Column(String, nullable=True)
+    cliente_documento = Column(String, nullable=True)
+    cliente_tipo_doc = Column(String, default="CC", nullable=True)
+    cliente_email = Column(String, nullable=True)
+    cliente_telefono = Column(String, nullable=True)
+    cliente_direccion = Column(String, nullable=True)
+    cliente_ciudad = Column(String, nullable=True)
+    origen_venta = Column(String, default="WEB", nullable=True)  # WEB | MANUAL_EXTERNA | PEDIDO_NEQUI
+
     usuario = relationship("User", back_populates="ventas")
     detalles = relationship("VentaItem", back_populates="venta", cascade="all, delete-orphan")
 

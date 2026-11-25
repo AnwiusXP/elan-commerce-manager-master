@@ -16,7 +16,7 @@ function Sidebar({ active }) {
   const items = [
     { path: '/dashboard', label: 'Inicio' },
     { path: '/productos', label: 'Productos' },
-    { path: '/ventas', label: 'Ventas' },
+    { path: '/facturas', label: 'Facturas' },
     { path: '/pedidos', label: 'Pedidos' },
     { path: '/inventario', label: 'Inventario' },
     { path: '/reportes', label: 'Reportes' },

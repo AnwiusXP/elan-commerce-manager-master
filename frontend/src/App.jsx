@@ -42,6 +42,7 @@ function App() {
         {/* Rutas protegidas — solo si está autenticado */}
         <Route path="/dashboard" element={<PrivateRoute allowedRoles={['admin']}><Dashboard /></PrivateRoute>} />
         <Route path="/productos" element={<PrivateRoute allowedRoles={['admin']}><Productos /></PrivateRoute>} />
+        <Route path="/facturas" element={<PrivateRoute allowedRoles={['admin']}><Ventas /></PrivateRoute>} />
         <Route path="/ventas" element={<PrivateRoute allowedRoles={['admin']}><Ventas /></PrivateRoute>} />
         <Route path="/pedidos" element={<PrivateRoute allowedRoles={['admin']}><Pedidos /></PrivateRoute>} />
         <Route path="/inventario" element={<PrivateRoute allowedRoles={['admin']}><Inventario /></PrivateRoute>} />

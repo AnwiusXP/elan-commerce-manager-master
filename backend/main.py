@@ -1,7 +1,7 @@
 # backend/main.py
 from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -10,10 +10,20 @@ from sqlalchemy import func as sql_func, text
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
+from dataclasses import asdict
 import json
 import os
+import io
 from datetime import datetime, timedelta
 import uuid
+
+# Importaciones de facturación DIAN
+from factura_utils import (
+    build_factura_data,
+    render_factura_pdf,
+    render_factura_xml,
+    FacturaData,
+)
 
 # Importaciones locales de base de datos y modelos
 from database import engine, Base
@@ -194,6 +204,33 @@ class VentaItemRequest(BaseModel):
 
 class VentaRequest(BaseModel):
     items: List[VentaItemRequest]
+
+
+# --- ESQUEMAS DE FACTURACIÓN MANUAL (Ventas Externas / POS) ---
+
+
+class FacturaClienteRequest(BaseModel):
+    nombre: str
+    documento: str
+    tipo_doc: str = "CC"
+    email: Optional[EmailStr] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    ciudad: Optional[str] = "Medellín, Colombia"
+
+
+class FacturaItemManualRequest(BaseModel):
+    producto_id: int
+    cantidad: int
+    precio_unitario: Optional[float] = None
+
+
+class CrearFacturaManualRequest(BaseModel):
+    cliente: FacturaClienteRequest
+    items: List[FacturaItemManualRequest]
+    metodo_pago: str = "EFECTIVO"
+    referencia_pago: Optional[str] = None
+    observaciones: Optional[str] = None
 
 
 # --- ESQUEMAS DE CHECKOUT ---
@@ -1752,6 +1789,235 @@ async def get_ventas_historial(
             }
         )
     return resultado
+
+
+# ========================================================================
+# MÓDULO DE FACTURACIÓN ELECTRÓNICA (TIPO DIAN) — VENTAS WEB Y MANUALES
+# ========================================================================
+
+
+@app.post("/api/facturas/manual")
+async def emitir_factura_manual(
+    req: CrearFacturaManualRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """
+    Registra una venta manual externa (mostrador, WhatsApp, POS o telefónica),
+    descuenta stock de forma transaccional, genera movimientos de inventario tipo VENTA
+    y retorna los datos completos de la factura lista para visualización y exportación.
+    """
+    if not req.items:
+        raise HTTPException(
+            status_code=400,
+            detail="Debe incluir al menos un producto para generar la factura."
+        )
+
+    try:
+        items_para_guardar = []
+        total_venta = 0.0
+
+        for item in req.items:
+            producto = db.query(Producto).filter(Producto.id == item.producto_id).first()
+            if not producto:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Producto con ID {item.producto_id} no encontrado en catálogo."
+                )
+
+            if producto.stock < item.cantidad:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Stock insuficiente para '{producto.nombre}'. Disponible: {producto.stock}, Solicitado: {item.cantidad}"
+                )
+
+            # Usar precio personalizado si viene provisto, o precio de base de datos
+            precio_unitario = float(item.precio_unitario) if (item.precio_unitario is not None and item.precio_unitario > 0) else float(producto.precio or 0.0)
+            subtotal = precio_unitario * item.cantidad
+            total_venta += subtotal
+
+            # Descontar stock
+            producto.stock -= item.cantidad
+
+            items_para_guardar.append({
+                "producto_id": item.producto_id,
+                "nombre_producto": producto.nombre,
+                "cantidad": item.cantidad,
+                "precio": precio_unitario,
+            })
+
+        # Crear la venta con datos fiscales del comprador
+        nueva_venta = Venta(
+            items=json.dumps(items_para_guardar),
+            total=total_venta,
+            metodo_pago=req.metodo_pago.upper() if req.metodo_pago else "EFECTIVO",
+            estado="APROBADA",
+            referencia_pago=req.referencia_pago,
+            cliente_nombre=req.cliente.nombre.strip(),
+            cliente_documento=req.cliente.documento.strip(),
+            cliente_tipo_doc=req.cliente.tipo_doc.upper() if req.cliente.tipo_doc else "CC",
+            cliente_email=req.cliente.email,
+            cliente_telefono=req.cliente.telefono,
+            cliente_direccion=req.cliente.direccion,
+            cliente_ciudad=req.cliente.ciudad or "Medellín, Colombia",
+            origen_venta="MANUAL_EXTERNA",
+        )
+        db.add(nueva_venta)
+        db.flush()
+
+        # Registrar VentaItems normalizados y movimientos de inventario
+        for item_data in items_para_guardar:
+            producto = db.query(Producto).filter(Producto.id == item_data["producto_id"]).first()
+
+            detalle = VentaItem(
+                venta_id=nueva_venta.id,
+                producto_id=item_data["producto_id"],
+                nombre_producto=item_data["nombre_producto"],
+                cantidad=item_data["cantidad"],
+                precio_unitario=item_data["precio"],
+                subtotal=item_data["precio"] * item_data["cantidad"],
+            )
+            db.add(detalle)
+
+            movimiento = MovimientoInventario(
+                producto_id=item_data["producto_id"],
+                tipo="VENTA",
+                cantidad=-item_data["cantidad"],
+                stock_resultante=producto.stock,
+                referencia_id=nueva_venta.id,
+                nota=f"Factura Manual #{nueva_venta.id} - Venta Externa",
+            )
+            db.add(movimiento)
+
+        db.commit()
+        db.refresh(nueva_venta)
+
+        factura_data = build_factura_data(nueva_venta, db)
+        return {
+            "status": "success",
+            "venta_id": nueva_venta.id,
+            "factura": asdict(factura_data),
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al emitir factura manual: {str(e)}"
+        )
+
+
+@app.get("/api/facturas")
+async def listar_facturas(
+    q: Optional[str] = None,
+    origen: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """
+    Lista de facturas emitidas a partir de ventas APROBADAS y REEMBOLSADAS.
+    Permite filtrar por búsqueda de cliente o # de factura, y por origen.
+    """
+    query = db.query(Venta).filter(Venta.estado.in_(["APROBADA", "REEMBOLSADA"]))
+
+    if origen and origen != "TODAS":
+        query = query.filter(Venta.origen_venta == origen.upper())
+
+    ventas = query.order_by(Venta.fecha.desc()).limit(200).all()
+    resultado = []
+
+    for v in ventas:
+        factura_data = build_factura_data(v, db)
+        if q:
+            term = q.lower().strip()
+            num_match = term in factura_data.numero_factura.lower()
+            cliente_match = term in factura_data.comprador_nombre.lower()
+            doc_match = term in factura_data.comprador_documento.lower()
+            if not (num_match or cliente_match or doc_match):
+                continue
+
+        resultado.append({
+            "venta_id": v.id,
+            "numero_factura": factura_data.numero_factura,
+            "fecha": factura_data.fecha_emision.isoformat(),
+            "cliente_nombre": factura_data.comprador_nombre,
+            "cliente_documento": factura_data.comprador_documento,
+            "cliente_tipo_doc": factura_data.comprador_tipo_doc,
+            "total": factura_data.total,
+            "subtotal": factura_data.subtotal,
+            "iva_monto": factura_data.iva_monto,
+            "metodo_pago": factura_data.metodo_pago,
+            "estado": factura_data.estado_venta,
+            "origen_venta": factura_data.origen_venta,
+            "items_count": len(factura_data.items),
+        })
+
+    return resultado
+
+
+@app.get("/api/facturas/{venta_id}")
+async def obtener_detalle_factura(
+    venta_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """Obtiene el payload completo de la factura para renderizar la vista previa."""
+    venta = db.query(Venta).filter(Venta.id == venta_id).first()
+    if not venta:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+
+    factura_data = build_factura_data(venta, db)
+    return asdict(factura_data)
+
+
+@app.get("/api/facturas/{venta_id}/pdf")
+async def descargar_factura_pdf(
+    venta_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """Genera y transmite en streaming el PDF tipo DIAN para una venta."""
+    venta = db.query(Venta).filter(Venta.id == venta_id).first()
+    if not venta:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+
+    factura_data = build_factura_data(venta, db)
+    pdf_bytes = render_factura_pdf(factura_data)
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{factura_data.numero_factura}.pdf"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
+
+@app.get("/api/facturas/{venta_id}/xml")
+async def descargar_factura_xml(
+    venta_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_admin_user),
+):
+    """Genera y descarga el XML UBL 2.1 para una venta."""
+    venta = db.query(Venta).filter(Venta.id == venta_id).first()
+    if not venta:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+
+    factura_data = build_factura_data(venta, db)
+    xml_str = render_factura_xml(factura_data)
+
+    return Response(
+        content=xml_str,
+        media_type="application/xml",
+        headers={
+            "Content-Disposition": f'attachment; filename="{factura_data.numero_factura}.xml"',
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
 
 
 @app.get("/api/inventario/alertas")
